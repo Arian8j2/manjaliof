@@ -1,7 +1,7 @@
 use std::fs;
 use std::io::Write;
 use chrono::{Duration, Utc};
-use crate::db::{Database, Client, Payment, DAYS_PER_MONTH};
+use crate::db::{Database, BackupableDatabase, Client, Payment, DAYS_PER_MONTH};
 
 pub struct JsonDb {
     file_path: String
@@ -84,5 +84,23 @@ impl Database for JsonDb {
             Err(error) => return Err(format!("cannot parse json: {}", error.to_string()))
         };
         Ok(clients)
+    }
+}
+
+impl BackupableDatabase for JsonDb {
+    type DbData = String; 
+
+    fn get_backup(&self) -> Result<Self::DbData, String> {
+        let file_content = fs::read_to_string(&self.file_path).map_err(
+            |error| format!("cannot open database file at '{}' for getting backup: {}",
+                self.file_path, error.to_string()))?;
+
+        Ok(file_content)
+    }
+
+    fn restore_backup(&self, backup: Self::DbData) -> Result<(), String> {
+        fs::write(&self.file_path, backup).map_err(
+            |error| format!("cannot write to database file at '{}' for restoring: {}",
+                self.file_path, error.to_string()))
     }
 }

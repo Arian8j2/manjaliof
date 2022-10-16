@@ -44,3 +44,10 @@ pub trait Database {
     fn delete_client(&self, name: &str) -> Result<(), String>;
     fn list_clients(&self) -> Result<Vec<Client>, String>;
 }
+
+pub trait BackupableDatabase {
+    type DbData;
+
+    fn get_backup(&self) -> Result<Self::DbData, String>;
+    fn restore_backup(&self, backup: Self::DbData) -> Result<(), String>;
+}

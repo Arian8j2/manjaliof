@@ -2,7 +2,7 @@ mod input;
 mod db;
 
 use std::{process::Command, process::ExitCode, path::Path};
-use db::{Database, jsondb::JsonDb};
+use db::{Database, BackupableDatabase, jsondb::JsonDb};
 use clap::{Parser, Subcommand};
 use dialoguer::console::style;
 
@@ -40,8 +40,21 @@ const MAP_COMMANDS_WITH_POST_SCRIPT: [(Commands, &str); 3] = [
 ];
 
 fn main() -> ExitCode {
+    match try_main() {
+        Ok(_) => ExitCode::SUCCESS,
+        Err(err) => {
+            let error_msg = format!("Error: {}", err);
+            eprintln!("{}", style(error_msg).red());
+            ExitCode::FAILURE
+        }
+    }
+}
+
+fn try_main() -> Result<(), String> {
     let args = Cli::parse();
+
     let db = JsonDb::new(DB_FILE_PATH);
+    let backup = db.get_backup()?;
 
     let command_function = match args.command {
         Commands::Add => add_client,
@@ -51,13 +64,12 @@ fn main() -> ExitCode {
         Commands::HealthCheck => health_check
     };
 
-    if let Err(error) = command_function(&db, get_command_post_script(args.command)) {
-        let complete_error_msg = format!("Error: {}", error);
-        eprintln!("{}", style(complete_error_msg).red());
-        return ExitCode::FAILURE;
+    let result = command_function(&db, get_command_post_script(args.command));
+    if result.is_err() {
+        db.restore_backup(backup)?;
     }
 
-    ExitCode::SUCCESS
+    result
 }
 
 fn add_client(db: &dyn Database, post_script_name: Option<&str>) -> Result<(), String> {
@@ -136,10 +148,14 @@ fn run_post_script(script_name: &str, arg: &str) -> Result<(), String> {
     };
 
     if !output.status.success() {
-        let output_stderr = std::str::from_utf8(output.stderr.as_slice()).unwrap();
+        let mut output_stderr = std::str::from_utf8(output.stderr.as_slice()).unwrap().to_string();
+        output_stderr.pop(); // remove new line
         return Err(format!("post script exited due to a failure: {}", output_stderr));
     }
 
-    println!("{}", std::str::from_utf8(output.stdout.as_slice()).unwrap().to_string());
+    let result = std::str::from_utf8(output.stdout.as_slice()).unwrap().to_string();
+    if !result.is_empty() {
+        println!("{}", result);
+    }
     Ok(())
 }
