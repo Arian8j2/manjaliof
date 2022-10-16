@@ -1,7 +1,7 @@
 mod input;
 mod db;
 
-use std::{process::ExitCode, path::Path};
+use std::{process::Command, process::ExitCode, path::Path};
 use db::{Database, jsondb::JsonDb};
 use clap::{Parser, Subcommand};
 use dialoguer::console::style;
@@ -13,7 +13,7 @@ struct Cli {
     command: Commands
 }
 
-#[derive(Subcommand)]
+#[derive(Subcommand, PartialEq)]
 enum Commands {
     #[command(about="adds new client to db")]
     Add,
@@ -31,9 +31,13 @@ enum Commands {
     HealthCheck
 }
 
-const DB_FILE_PATH: &'static str = "manjaliof-data/data.json";
-const POST_SCRIPTS_FOLDER_PATH: &'static str = "manjaliof-data/post_scripts";
-const POST_SCRIPTS_FILE_NAMES: [&'static str; 3] = ["postadd", "postrenew", "postdelete"];
+const DB_FILE_PATH: &str = "manjaliof-data/data.json";
+const POST_SCRIPTS_FOLDER_PATH: &str = "manjaliof-data/post_scripts";
+const MAP_COMMANDS_WITH_POST_SCRIPT: [(Commands, &str); 3] = [
+    (Commands::Add, "postadd"),
+    (Commands::Renew, "postrenew"),
+    (Commands::Delete, "postdelete")
+];
 
 fn main() -> ExitCode {
     let args = Cli::parse();
@@ -47,7 +51,7 @@ fn main() -> ExitCode {
         Commands::HealthCheck => health_check
     };
 
-    if let Err(error) = command_function(&db) {
+    if let Err(error) = command_function(&db, get_command_post_script(args.command)) {
         let complete_error_msg = format!("Error: {}", error);
         eprintln!("{}", style(complete_error_msg).red());
         return ExitCode::FAILURE;
@@ -56,50 +60,86 @@ fn main() -> ExitCode {
     ExitCode::SUCCESS
 }
 
-fn add_client(db: &dyn Database) -> Result<(), String> {
+fn add_client(db: &dyn Database, post_script_name: Option<&str>) -> Result<(), String> {
     let name = input::get_client_name();
     let months = input::get_months();
     let seller = input::get_seller();
     let money = input::get_money_amount();
-    db.add_client(name, months, seller, money)
+    db.add_client(&name, months, &seller, money)?;
+
+    run_post_script(post_script_name.unwrap(), &name)?;
+    println!("{}", style("client added successfully").green());
+    Ok(())
 }
 
-fn renew_client(db: &dyn Database) -> Result<(), String> {
+fn renew_client(db: &dyn Database, post_script_name: Option<&str>) -> Result<(), String> {
     let name = input::get_client_name();
     let months = input::get_months();
     let seller = input::get_seller();
     let money = input::get_money_amount();
-    db.renew_client(name, months, seller, money)
+    db.renew_client(&name, months, &seller, money)?;
+
+    run_post_script(post_script_name.unwrap(), &name)?;
+    println!("{}", style("client renewed successfully").green());
+    Ok(())
 }
 
-fn delete_client(db: &dyn Database) -> Result<(), String> {
+fn delete_client(db: &dyn Database, post_script_name: Option<&str>) -> Result<(), String> {
     let name = input::get_client_name();
-    db.delete_client(name)
+    db.delete_client(&name)?;
+
+    run_post_script(post_script_name.unwrap(), &name)?;
+    println!("{}", style("client deleted successfully").green());
+    Ok(())
 }
 
-fn health_check(db: &dyn Database) -> Result<(), String> {
+fn health_check(db: &dyn Database, _post_script_name: Option<&str>) -> Result<(), String> {
     let db_file = Path::new(DB_FILE_PATH);
     if !db_file.is_file() {
-        return Err(format!("Cannot find database file at '{}'", DB_FILE_PATH));
+        return Err(format!("cannot find database file at '{}'", DB_FILE_PATH));
     }
 
     if db.list_clients().is_err() {
-        return Err("Cannot extract data from db".to_string());
+        return Err("cannot extract data from db".to_string());
     }
 
     let post_scripts_folder = Path::new(POST_SCRIPTS_FOLDER_PATH);
     if !post_scripts_folder.is_dir() {
-        return Err(format!("Cannot find post scripts folder at '{}'", POST_SCRIPTS_FOLDER_PATH));
+        return Err(format!("cannot find post scripts folder at '{}'", POST_SCRIPTS_FOLDER_PATH));
     }
 
-    for post_script_file_name in POST_SCRIPTS_FILE_NAMES {
+    for command_with_post_script in MAP_COMMANDS_WITH_POST_SCRIPT {
+        let post_script_file_name = command_with_post_script.1;
         let post_script = post_scripts_folder.join(post_script_file_name);
         if !post_script.is_file() {
-            return Err(format!("Cannot find post script at '{}'", post_script.to_str().unwrap()));
+            return Err(format!("cannot find post script at '{}'", post_script.to_str().unwrap()));
         }
     }
 
-    let success_msg = format!("Everything is fine");
+    let success_msg = format!("everything is fine");
     println!("{}", style(success_msg).green());
+    Ok(())
+}
+
+fn get_command_post_script(command: Commands) -> Option<&'static str> {
+    match MAP_COMMANDS_WITH_POST_SCRIPT.iter().find(|command_with_post_script| command_with_post_script.0 == command) {
+        Some(command_with_post_script) => Some(command_with_post_script.1),
+        None => None
+    }
+}
+
+fn run_post_script(script_name: &str, arg: &str) -> Result<(), String> {
+    let script_path = Path::new(POST_SCRIPTS_FOLDER_PATH).join(script_name);
+    let output = match Command::new(&script_path).arg(arg).output() {
+        Ok(output) => output,
+        Err(error) => return Err(format!("couldn't run post script '{}': {}", script_path.to_str().unwrap(), error.to_string())),
+    };
+
+    if !output.status.success() {
+        let output_stderr = std::str::from_utf8(output.stderr.as_slice()).unwrap();
+        return Err(format!("post script exited due to a failure: {}", output_stderr));
+    }
+
+    println!("{}", std::str::from_utf8(output.stdout.as_slice()).unwrap().to_string());
     Ok(())
 }

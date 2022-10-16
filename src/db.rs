@@ -26,12 +26,12 @@ pub struct Client {
 }
 
 impl Client {
-    fn new(name: String, months: u32, seller: &str, money: u32) -> Client {
+    fn new(name: &str, months: u32, seller: &str, money: u32) -> Client {
         let now_date = Utc::now();
         let expire_time = now_date + Duration::days((months * DAYS_PER_MONTH).into());
 
         Client {
-            name,
+            name: name.to_string(),
             expire_time,
             payments: vec![Payment { seller: seller.to_string(), money, date: now_date }],
         }
@@ -39,8 +39,8 @@ impl Client {
 }
 
 pub trait Database {
-    fn add_client(&self, name: String, months: u32, seller: String, money: u32) -> Result<(), String>;
-    fn renew_client(&self, name: String, months: u32, seller: String, money: u32) -> Result<(), String>;
-    fn delete_client(&self, name: String) -> Result<(), String>;
+    fn add_client(&self, name: &str, months: u32, seller: &str, money: u32) -> Result<(), String>;
+    fn renew_client(&self, name: &str, months: u32, seller: &str, money: u32) -> Result<(), String>;
+    fn delete_client(&self, name: &str) -> Result<(), String>;
     fn list_clients(&self) -> Result<Vec<Client>, String>;
 }

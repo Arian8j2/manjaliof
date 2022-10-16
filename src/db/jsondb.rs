@@ -29,7 +29,7 @@ impl JsonDb {
 }
 
 impl Database for JsonDb {
-    fn add_client(&self, name: String, months: u32, seller: String, money: u32) -> Result<(), String> {
+    fn add_client(&self, name: &str, months: u32, seller: &str, money: u32) -> Result<(), String> {
         let mut clients: Vec<Client> = self.list_clients()?;
         if clients.iter().any(|exist_client| { exist_client.name == name }) {
             return Err(format!("client '{}' already exists!", name))
@@ -41,7 +41,7 @@ impl Database for JsonDb {
         Ok(())
     }
 
-    fn renew_client(&self, name: String, months: u32, seller: String, money: u32) -> Result<(), String> {
+    fn renew_client(&self, name: &str, months: u32, seller: &str, money: u32) -> Result<(), String> {
         let mut clients: Vec<Client> = self.list_clients()?;
         let index = match clients.iter().position(|client| { client.name == name }) {
             Some(index) => index,
@@ -56,12 +56,12 @@ impl Database for JsonDb {
         }
 
         client.expire_time += Duration::days((months * DAYS_PER_MONTH).into());
-        client.payments.push(Payment { seller, money, date: now_date });
+        client.payments.push(Payment { seller: seller.to_string(), money, date: now_date });
         self.save_clients(clients)?;
         Ok(())
     }
 
-    fn delete_client(&self, name: String) -> Result<(), String> {
+    fn delete_client(&self, name: &str) -> Result<(), String> {
         let mut clients: Vec<Client> = self.list_clients()?;
         let index: usize = match clients.iter().position(|client| { client.name == name }) {
             Some(index) => index,
