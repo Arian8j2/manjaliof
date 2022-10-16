@@ -142,10 +142,8 @@ fn get_command_post_script(command: Commands) -> Option<&'static str> {
 
 fn run_post_script(script_name: &str, arg: &str) -> Result<(), String> {
     let script_path = Path::new(POST_SCRIPTS_FOLDER_PATH).join(script_name);
-    let output = match Command::new(&script_path).arg(arg).output() {
-        Ok(output) => output,
-        Err(error) => return Err(format!("couldn't run post script '{}': {}", script_path.to_str().unwrap(), error.to_string())),
-    };
+    let output = Command::new(&script_path).arg(arg).output().map_err(
+        |error| format!("couldn't run post script '{}': {}", script_path.to_str().unwrap(), error.to_string()))?;
 
     if !output.status.success() {
         let mut output_stderr = std::str::from_utf8(output.stderr.as_slice()).unwrap().to_string();

@@ -1,5 +1,4 @@
 use std::fs;
-use std::io::Write;
 use chrono::{Duration, Utc};
 use crate::db::{Database, BackupableDatabase, Client, Payment, DAYS_PER_MONTH};
 
@@ -15,16 +14,9 @@ impl JsonDb {
     }
 
     fn save_clients(&self, clients: Vec<Client>) -> Result<(), String> {
-        let mut file = match fs::OpenOptions::new().write(true).append(false).truncate(true).open(&self.file_path) {
-            Ok(file) => file,
-            Err(error) => return Err(format!("cannot open file '{}' for writing: {}", self.file_path, error.to_string()))
-        };
-
         let json_string = serde_json::to_string_pretty(&clients).unwrap();
-        match file.write(json_string.as_bytes()) {
-            Ok(..) => Ok(()),
-            Err(error) => return Err(format!("cannot write to file '{}': {}", self.file_path, error.to_string()))
-        }
+        fs::write(&self.file_path, json_string.as_bytes()).map_err(
+            |error| format!("cannot write to file '{}': {}", self.file_path, error.to_string()))
     }
 }
 
@@ -74,16 +66,10 @@ impl Database for JsonDb {
     }
 
     fn list_clients(&self) -> Result<Vec<Client>, String> {
-        let file = match fs::File::open(&self.file_path) {
-            Ok(file) => file,
-            Err(error) => return Err(format!("cannot open file '{}': {}", self.file_path, error.to_string()))
-        };
+        let file = fs::File::open(&self.file_path).map_err(
+            |error| format!("cannot open file '{}': {}", self.file_path, error.to_string()))?;
 
-        let clients: Vec<Client> = match serde_json::from_reader(file) {
-            Ok(clients) => clients,
-            Err(error) => return Err(format!("cannot parse json: {}", error.to_string()))
-        };
-        Ok(clients)
+        serde_json::from_reader(file).map_err(|error| format!("cannot parse json: {}", error.to_string()))
     }
 }
 
