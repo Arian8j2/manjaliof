@@ -1,10 +1,12 @@
 mod input;
 mod db;
+mod report;
 
 use std::{process::Command, process::ExitCode, path::Path};
 use db::{Database, BackupableDatabase, jsondb::JsonDb};
 use clap::{Parser, Subcommand};
 use dialoguer::console::style;
+use report::{Report, client_report};
 
 #[derive(Parser)]
 #[command(about="this program will always remain manjaliof")]
@@ -60,12 +62,12 @@ fn try_main() -> Result<(), String> {
         Commands::Add => add_client,
         Commands::Renew => renew_client,
         Commands::Delete => delete_client,
-        Commands::List => todo!(),
+        Commands::List => list_clients,
         Commands::HealthCheck => health_check
     };
 
-    let result = command_function(&db, get_command_post_script(args.command));
-    if result.is_err() {
+    let result = command_function(&db, get_command_post_script(&args.command));
+    if result.is_err() && args.command != Commands::List {
         db.restore_backup(backup)?;
     }
 
@@ -105,6 +107,24 @@ fn delete_client(db: &dyn Database, post_script_name: Option<&str>) -> Result<()
     Ok(())
 }
 
+fn list_clients(db: &dyn Database, _post_script_name: Option<&str>) -> Result<(), String> {
+    let mut clients = db.list_clients()?;
+    clients.sort_by_key(|client| client.expire_time);
+    clients.reverse();
+
+    let mut report = Report::new(["name", "months left", "seller"].to_vec());
+    for client in clients {
+        let name = style(client.name).cyan().to_string();
+        let months_left = client_report::calculate_months_left(client.expire_time);
+        let sellers = client_report::calculate_sellers(&client.payments);
+
+        report.add_item([name, months_left, sellers].to_vec());
+    }
+
+    report.show();
+    Ok(())
+}
+
 fn health_check(db: &dyn Database, _post_script_name: Option<&str>) -> Result<(), String> {
     let db_file = Path::new(DB_FILE_PATH);
     if !db_file.is_file() {
@@ -133,8 +153,8 @@ fn health_check(db: &dyn Database, _post_script_name: Option<&str>) -> Result<()
     Ok(())
 }
 
-fn get_command_post_script(command: Commands) -> Option<&'static str> {
-    match MAP_COMMANDS_WITH_POST_SCRIPT.iter().find(|command_with_post_script| command_with_post_script.0 == command) {
+fn get_command_post_script(command: &Commands) -> Option<&'static str> {
+    match MAP_COMMANDS_WITH_POST_SCRIPT.iter().find(|command_with_post_script| command_with_post_script.0 == *command) {
         Some(command_with_post_script) => Some(command_with_post_script.1),
         None => None
     }
