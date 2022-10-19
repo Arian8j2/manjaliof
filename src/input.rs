@@ -16,7 +16,7 @@ pub fn get_seller() -> String {
 
 pub fn get_money_amount() -> u32 {
     Input::with_theme(&get_theme()).with_prompt("money money")
-                                   .default("40".into())
+                                   .default("60".into())
                                    .validate_with(validators::NumberValidator {})
                                    .interact_text().unwrap().parse().unwrap()
 }
