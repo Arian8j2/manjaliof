@@ -2,7 +2,7 @@ mod input;
 mod db;
 mod report;
 
-use std::{process::Command, process::ExitCode, path::Path};
+use std::{env, process::Command, process::ExitCode, path::Path};
 use db::{Database, BackupableDatabase, jsondb::JsonDb};
 use clap::{Parser, Subcommand};
 use dialoguer::console::style;
@@ -33,8 +33,9 @@ enum Commands {
     HealthCheck
 }
 
-const DB_FILE_PATH: &str = "manjaliof-data/data.json";
-const POST_SCRIPTS_FOLDER_PATH: &str = "manjaliof-data/post_scripts";
+const DATA_PATH_ENV_NAME: &str = "MANJALIOF_DATA";
+const DB_FILE_NAME: &str = "data.json";
+const POST_SCRIPTS_FOLDER_NAME: &str = "post_scripts";
 const MAP_COMMANDS_WITH_POST_SCRIPT: [(Commands, &str); 3] = [
     (Commands::Add, "postadd"),
     (Commands::Renew, "postrenew"),
@@ -55,7 +56,8 @@ fn main() -> ExitCode {
 fn try_main() -> Result<(), String> {
     let args = Cli::parse();
 
-    let db = JsonDb::new(DB_FILE_PATH);
+    let db_path = Path::new(&get_data_path()?).join(DB_FILE_NAME);
+    let db = JsonDb::new(db_path.to_str().unwrap());
     let backup = db.get_backup()?;
 
     let command_function = match args.command {
@@ -126,18 +128,19 @@ fn list_clients(db: &dyn Database, _post_script_name: Option<&str>) -> Result<()
 }
 
 fn health_check(db: &dyn Database, _post_script_name: Option<&str>) -> Result<(), String> {
-    let db_file = Path::new(DB_FILE_PATH);
+    let data_folder = get_data_path()?;
+    let db_file = Path::new(&data_folder).join(DB_FILE_NAME);
     if !db_file.is_file() {
-        return Err(format!("cannot find database file at '{}'", DB_FILE_PATH));
+        return Err(format!("cannot find database file at '{}'", DB_FILE_NAME));
     }
 
     if db.list_clients().is_err() {
         return Err("cannot extract data from db".to_string());
     }
 
-    let post_scripts_folder = Path::new(POST_SCRIPTS_FOLDER_PATH);
+    let post_scripts_folder = Path::new(&data_folder).join(POST_SCRIPTS_FOLDER_NAME);
     if !post_scripts_folder.is_dir() {
-        return Err(format!("cannot find post scripts folder at '{}'", POST_SCRIPTS_FOLDER_PATH));
+        return Err(format!("cannot find post scripts folder at '{}'", POST_SCRIPTS_FOLDER_NAME));
     }
 
     for command_with_post_script in MAP_COMMANDS_WITH_POST_SCRIPT {
@@ -161,7 +164,7 @@ fn get_command_post_script(command: &Commands) -> Option<&'static str> {
 }
 
 fn run_post_script(script_name: &str, arg: &str) -> Result<(), String> {
-    let script_path = Path::new(POST_SCRIPTS_FOLDER_PATH).join(script_name);
+    let script_path = Path::new(&get_data_path()?).join(POST_SCRIPTS_FOLDER_NAME).join(script_name);
     let output = Command::new(&script_path).arg(arg).output().map_err(
         |error| format!("couldn't run post script '{}': {}", script_path.to_str().unwrap(), error.to_string()))?;
 
@@ -176,4 +179,10 @@ fn run_post_script(script_name: &str, arg: &str) -> Result<(), String> {
         println!("{}", result);
     }
     Ok(())
+}
+
+fn get_data_path() -> Result<String, String> {
+    let env_name = DATA_PATH_ENV_NAME;
+    env::var(env_name).map_err(|_error|
+        format!("please set '{env_name}' environment variable to point to manjaliof data folder"))
 }
