@@ -74,10 +74,10 @@ fn try_main() -> Result<(), String> {
 
 fn add_client(db: &dyn Database, post_script_name: Option<&str>) -> Result<(), String> {
     let name = input::get_client_name();
-    let months = input::get_months();
+    let days = input::get_days();
     let seller = input::get_seller();
     let money = input::get_money_amount();
-    db.add_client(&name, months, &seller, money)?;
+    db.add_client(&name, days, &seller, money)?;
 
     run_post_script(post_script_name.unwrap(), &name)?;
     println!("{}", style("client added successfully").green());
@@ -86,10 +86,10 @@ fn add_client(db: &dyn Database, post_script_name: Option<&str>) -> Result<(), S
 
 fn renew_client(db: &dyn Database, post_script_name: Option<&str>) -> Result<(), String> {
     let name = input::get_client_name();
-    let months = input::get_months();
+    let days = input::get_days();
     let seller = input::get_seller();
     let money = input::get_money_amount();
-    db.renew_client(&name, months, &seller, money)?;
+    db.renew_client(&name, days, &seller, money)?;
 
     run_post_script(post_script_name.unwrap(), &name)?;
     println!("{}", style("client renewed successfully").green());
@@ -113,7 +113,7 @@ fn list_clients(db: &dyn Database, _post_script_name: Option<&str>) -> Result<()
     let mut report = Report::new(["name", "months left", "seller"].to_vec());
     for client in clients {
         let name = style(client.name).cyan().to_string();
-        let months_left = client_report::calculate_months_left(client.expire_time);
+        let months_left = client_report::calculate_days_left(client.expire_time);
         let sellers = client_report::calculate_sellers(&client.payments);
 
         report.add_item([name, months_left, sellers].to_vec());

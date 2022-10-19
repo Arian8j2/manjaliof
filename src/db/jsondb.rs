@@ -1,6 +1,6 @@
 use std::fs;
 use chrono::{Duration, Utc};
-use crate::db::{Database, BackupableDatabase, Client, Payment, DAYS_PER_MONTH};
+use crate::db::{Database, BackupableDatabase, Client, Payment};
 
 pub struct JsonDb {
     file_path: String
@@ -21,19 +21,19 @@ impl JsonDb {
 }
 
 impl Database for JsonDb {
-    fn add_client(&self, name: &str, months: u32, seller: &str, money: u32) -> Result<(), String> {
+    fn add_client(&self, name: &str, days: u32, seller: &str, money: u32) -> Result<(), String> {
         let mut clients: Vec<Client> = self.list_clients()?;
         if clients.iter().any(|exist_client| { exist_client.name == name }) {
             return Err(format!("client '{}' already exists!", name))
         }
 
-        let client = Client::new(name, months, &seller, money);
+        let client = Client::new(name, days, &seller, money);
         clients.push(client);
         self.save_clients(clients)?;
         Ok(())
     }
 
-    fn renew_client(&self, name: &str, months: u32, seller: &str, money: u32) -> Result<(), String> {
+    fn renew_client(&self, name: &str, days: u32, seller: &str, money: u32) -> Result<(), String> {
         let mut clients: Vec<Client> = self.list_clients()?;
         let index = match clients.iter().position(|client| { client.name == name }) {
             Some(index) => index,
@@ -47,7 +47,7 @@ impl Database for JsonDb {
             client.expire_time = now_date;
         }
 
-        client.expire_time += Duration::days((months * DAYS_PER_MONTH).into());
+        client.expire_time += Duration::days(days.into());
         client.payments.push(Payment { seller: seller.to_string(), money, date: now_date });
         self.save_clients(clients)?;
         Ok(())

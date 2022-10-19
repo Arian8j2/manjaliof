@@ -21,9 +21,9 @@ pub fn get_money_amount() -> u32 {
                                    .interact_text().unwrap().parse().unwrap()
 }
 
-pub fn get_months() -> u32 {
-    Input::with_theme(&get_theme()).with_prompt("how many months")
-                                   .default("1".into())
+pub fn get_days() -> u32 {
+    Input::with_theme(&get_theme()).with_prompt("how many days")
+                                   .default("30".into())
                                    .validate_with(validators::NumberValidator {})
                                    .interact_text().unwrap().parse().unwrap()
 }

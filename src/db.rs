@@ -4,8 +4,6 @@ pub mod jsondb;
 use chrono::{DateTime, Duration, Utc};
 use serde::{Deserialize, Serialize};
 
-pub const DAYS_PER_MONTH: u32 = 30;
-
 #[derive(Serialize, Deserialize)]
 pub struct Payment {
     pub seller: String,
@@ -26,9 +24,9 @@ pub struct Client {
 }
 
 impl Client {
-    fn new(name: &str, months: u32, seller: &str, money: u32) -> Client {
+    fn new(name: &str, days: u32, seller: &str, money: u32) -> Client {
         let now_date = Utc::now();
-        let expire_time = now_date + Duration::days((months * DAYS_PER_MONTH).into());
+        let expire_time = now_date + Duration::days(days.into());
 
         Client {
             name: name.to_string(),
@@ -39,8 +37,8 @@ impl Client {
 }
 
 pub trait Database {
-    fn add_client(&self, name: &str, months: u32, seller: &str, money: u32) -> Result<(), String>;
-    fn renew_client(&self, name: &str, months: u32, seller: &str, money: u32) -> Result<(), String>;
+    fn add_client(&self, name: &str, days: u32, seller: &str, money: u32) -> Result<(), String>;
+    fn renew_client(&self, name: &str, days: u32, seller: &str, money: u32) -> Result<(), String>;
     fn delete_client(&self, name: &str) -> Result<(), String>;
     fn list_clients(&self) -> Result<Vec<Client>, String>;
 }
