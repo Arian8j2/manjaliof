@@ -37,9 +37,9 @@ const DATA_PATH_ENV_NAME: &str = "MANJALIOF_DATA";
 const DB_FILE_NAME: &str = "data.json";
 const POST_SCRIPTS_FOLDER_NAME: &str = "post_scripts";
 const MAP_COMMANDS_WITH_POST_SCRIPT: [(Commands, &str); 3] = [
-    (Commands::Add, "postadd"),
-    (Commands::Renew, "postrenew"),
-    (Commands::Delete, "postdelete")
+    (Commands::Add, "add"),
+    (Commands::Renew, "renew"),
+    (Commands::Delete, "delete")
 ];
 
 fn main() -> ExitCode {
