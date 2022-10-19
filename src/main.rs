@@ -28,9 +28,6 @@ enum Commands {
 
     #[command(about="show all clients")]
     List,
-
-    #[command(about="check db and post scripts exist")]
-    HealthCheck
 }
 
 const DATA_PATH_ENV_NAME: &str = "MANJALIOF_DATA";
@@ -64,8 +61,7 @@ fn try_main() -> Result<(), String> {
         Commands::Add => add_client,
         Commands::Renew => renew_client,
         Commands::Delete => delete_client,
-        Commands::List => list_clients,
-        Commands::HealthCheck => health_check
+        Commands::List => list_clients
     };
 
     let result = command_function(&db, get_command_post_script(&args.command));
@@ -124,35 +120,6 @@ fn list_clients(db: &dyn Database, _post_script_name: Option<&str>) -> Result<()
     }
 
     report.show();
-    Ok(())
-}
-
-fn health_check(db: &dyn Database, _post_script_name: Option<&str>) -> Result<(), String> {
-    let data_folder = get_data_path()?;
-    let db_file = Path::new(&data_folder).join(DB_FILE_NAME);
-    if !db_file.is_file() {
-        return Err(format!("cannot find database file at '{}'", DB_FILE_NAME));
-    }
-
-    if db.list_clients().is_err() {
-        return Err("cannot extract data from db".to_string());
-    }
-
-    let post_scripts_folder = Path::new(&data_folder).join(POST_SCRIPTS_FOLDER_NAME);
-    if !post_scripts_folder.is_dir() {
-        return Err(format!("cannot find post scripts folder at '{}'", POST_SCRIPTS_FOLDER_NAME));
-    }
-
-    for command_with_post_script in MAP_COMMANDS_WITH_POST_SCRIPT {
-        let post_script_file_name = command_with_post_script.1;
-        let post_script = post_scripts_folder.join(post_script_file_name);
-        if !post_script.is_file() {
-            return Err(format!("cannot find post script at '{}'", post_script.to_str().unwrap()));
-        }
-    }
-
-    let success_msg = format!("everything is fine");
-    println!("{}", style(success_msg).green());
     Ok(())
 }
 
