@@ -12,7 +12,10 @@ use report::{Report, client_report};
 #[command(about="this program will always remain manjaliof")]
 struct Cli {
     #[command(subcommand)] 
-    command: Commands
+    command: Commands,
+
+    #[arg(long, default_value_t = false)]
+    skip_post_script: bool
 }
 
 #[derive(Subcommand, PartialEq)]
@@ -64,7 +67,17 @@ fn try_main() -> Result<(), String> {
         Commands::List => list_clients
     };
 
-    let result = command_function(&db, get_command_post_script(&args.command));
+    let post_script_name = get_command_post_script(&args.command, args.skip_post_script);
+    let result = {
+        let post_script_arg = command_function(&db)?;
+        if let (Some(name), Some(arg)) = (post_script_name, post_script_arg){
+            run_post_script(name, &arg)?;
+        }
+        
+        println!("{}", style("command executed successfully").green());
+        Ok(())
+    };
+
     if result.is_err() && args.command != Commands::List {
         db.restore_backup(backup)?;
     }
@@ -72,40 +85,34 @@ fn try_main() -> Result<(), String> {
     result
 }
 
-fn add_client(db: &dyn Database, post_script_name: Option<&str>) -> Result<(), String> {
+fn add_client(db: &dyn Database) -> Result<Option<String>, String> {
     let name = input::get_client_name();
     let days = input::get_days();
     let seller = input::get_seller();
     let money = input::get_money_amount();
     db.add_client(&name, days, &seller, money)?;
 
-    run_post_script(post_script_name.unwrap(), &name)?;
-    println!("{}", style("client added successfully").green());
-    Ok(())
+    Ok(Some(name))
 }
 
-fn renew_client(db: &dyn Database, post_script_name: Option<&str>) -> Result<(), String> {
+fn renew_client(db: &dyn Database) -> Result<Option<String>, String> {
     let name = input::get_client_name();
     let days = input::get_days();
     let seller = input::get_seller();
     let money = input::get_money_amount();
     db.renew_client(&name, days, &seller, money)?;
 
-    run_post_script(post_script_name.unwrap(), &name)?;
-    println!("{}", style("client renewed successfully").green());
-    Ok(())
+    Ok(Some(name))
 }
 
-fn delete_client(db: &dyn Database, post_script_name: Option<&str>) -> Result<(), String> {
+fn delete_client(db: &dyn Database) -> Result<Option<String>, String> {
     let name = input::get_client_name();
     db.delete_client(&name)?;
 
-    run_post_script(post_script_name.unwrap(), &name)?;
-    println!("{}", style("client deleted successfully").green());
-    Ok(())
+    Ok(Some(name))
 }
 
-fn list_clients(db: &dyn Database, _post_script_name: Option<&str>) -> Result<(), String> {
+fn list_clients(db: &dyn Database) -> Result<Option<String>, String> {
     let mut clients = db.list_clients()?;
     clients.sort_by_key(|client| client.expire_time);
     clients.reverse();
@@ -120,10 +127,15 @@ fn list_clients(db: &dyn Database, _post_script_name: Option<&str>) -> Result<()
     }
 
     report.show();
-    Ok(())
+    Ok(None)
 }
 
-fn get_command_post_script(command: &Commands) -> Option<&'static str> {
+fn get_command_post_script(command: &Commands, skip: bool) -> Option<&'static str> {
+    if skip {
+        println!("{}", style("skipping post script!").yellow());
+        return None
+    }
+
     match MAP_COMMANDS_WITH_POST_SCRIPT.iter().find(|command_with_post_script| command_with_post_script.0 == *command) {
         Some(command_with_post_script) => Some(command_with_post_script.1),
         None => None
