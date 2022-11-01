@@ -83,7 +83,6 @@ fn try_main() -> Result<(), String> {
             run_post_script(name, &arg)?;
         }
         
-        println!("{}", style("command executed successfully").green());
         Ok(())
     };
 
