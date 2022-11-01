@@ -28,6 +28,14 @@ pub fn get_days() -> u32 {
                                    .interact_text().unwrap().parse().unwrap()
 }
 
+pub fn get_info(last_info: Option<&str>) -> String {
+    Input::with_theme(&get_theme()).with_prompt("extra info")
+                                   .allow_empty(true)
+                                   .with_initial_text(last_info.unwrap_or(""))
+                                   .validate_with(validators::ShortStringValidator {})
+                                   .interact_text().unwrap()
+}
+
 fn get_theme() -> impl theme::Theme {
     let mut theme = theme::ColorfulTheme::default();
     theme.success_prefix = style("✓".to_string()).for_stderr().green();

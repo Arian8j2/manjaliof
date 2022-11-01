@@ -1,6 +1,6 @@
 use std::fs;
 use chrono::{Duration, Utc};
-use crate::db::{Database, BackupableDatabase, Client, Payment};
+use crate::db::{Database, BackupableDatabase, Client, Payment, Target};
 
 pub struct JsonDb {
     file_path: String
@@ -21,13 +21,13 @@ impl JsonDb {
 }
 
 impl Database for JsonDb {
-    fn add_client(&self, name: &str, days: u32, seller: &str, money: u32) -> Result<(), String> {
+    fn add_client(&self, name: &str, days: u32, seller: &str, money: u32, info: &str) -> Result<(), String> {
         let mut clients: Vec<Client> = self.list_clients()?;
         if clients.iter().any(|exist_client| { exist_client.name == name }) {
             return Err(format!("client '{}' already exists!", name))
         }
 
-        let client = Client::new(name, days, &seller, money);
+        let client = Client::new(name, days, &seller, money, info);
         clients.push(client);
         self.save_clients(clients)?;
         Ok(())
@@ -70,6 +70,33 @@ impl Database for JsonDb {
             |error| format!("cannot open file '{}': {}", self.file_path, error.to_string()))?;
 
         serde_json::from_reader(file).map_err(|error| format!("cannot parse json: {}", error.to_string()))
+    }
+
+    fn set_client_info(&self, target: Target, info: &str) -> Result<(), String> {
+        let mut clients: Vec<Client> = self.list_clients()?;
+
+        for client in clients.iter_mut() {
+            if let Target::OnePerson(name) = &target {
+                if name != &client.name {
+                    continue;
+                }
+            }
+
+            client.info = Some(info.to_string());
+        }
+
+        self.save_clients(clients)?;
+        Ok(())
+    }
+
+    fn get_client_info(&self, name: &str) -> Result<String, String> {
+        let clients: Vec<Client> = self.list_clients()?;
+        if let Some(client) = clients.into_iter().find(|client| client.name == name) {
+            let info = client.info.unwrap_or("".to_string());
+            return Ok(info.to_string());
+        }
+
+        Err(format!("cannot find client with name '{}'", name))
     }
 }
 

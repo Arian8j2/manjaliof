@@ -3,8 +3,8 @@ mod db;
 mod report;
 
 use std::{env, process::Command, process::ExitCode, path::Path};
-use db::{Database, BackupableDatabase, jsondb::JsonDb};
-use clap::{Parser, Subcommand};
+use db::{Database, BackupableDatabase, jsondb::JsonDb, Target};
+use clap::{Args, Parser, Subcommand};
 use dialoguer::console::style;
 use report::{Report, client_report};
 
@@ -31,6 +31,15 @@ enum Commands {
 
     #[command(about="show all clients")]
     List,
+
+    #[command(about="set client info")]
+    SetInfo(SetInfoArgs)
+}
+
+#[derive(Args, PartialEq)]
+struct SetInfoArgs {
+    #[arg(short, long, default_value_t = false)]
+    all: bool
 }
 
 const DATA_PATH_ENV_NAME: &str = "MANJALIOF_DATA";
@@ -60,16 +69,16 @@ fn try_main() -> Result<(), String> {
     let db = JsonDb::new(db_path.to_str().unwrap());
     let backup = db.get_backup()?;
 
-    let command_function = match args.command {
-        Commands::Add => add_client,
-        Commands::Renew => renew_client,
-        Commands::Delete => delete_client,
-        Commands::List => list_clients
-    };
-
     let post_script_name = get_command_post_script(&args.command, args.skip_post_script);
     let result = {
-        let post_script_arg = command_function(&db)?;
+        let post_script_arg = match &args.command {
+            Commands::Add => add_client(&db)?,
+            Commands::Renew => renew_client(&db)?,
+            Commands::Delete => delete_client(&db)?,
+            Commands::List => list_clients(&db)?,
+            Commands::SetInfo(args) => set_client_info(&db, args)?,
+        };
+
         if let (Some(name), Some(arg)) = (post_script_name, post_script_arg){
             run_post_script(name, &arg)?;
         }
@@ -90,7 +99,8 @@ fn add_client(db: &dyn Database) -> Result<Option<String>, String> {
     let days = input::get_days();
     let seller = input::get_seller();
     let money = input::get_money_amount();
-    db.add_client(&name, days, &seller, money)?;
+    let info = input::get_info(None);
+    db.add_client(&name, days, &seller, money, &info)?;
 
     Ok(Some(name))
 }
@@ -117,16 +127,29 @@ fn list_clients(db: &dyn Database) -> Result<Option<String>, String> {
     clients.sort_by_key(|client| client.expire_time);
     clients.reverse();
 
-    let mut report = Report::new(["name", "months left", "seller"].to_vec());
+    let mut report = Report::new(["name", "months left", "seller", "info"].to_vec());
     for client in clients {
         let name = style(client.name).cyan().to_string();
         let months_left = client_report::calculate_days_left(client.expire_time);
         let sellers = client_report::calculate_sellers(&client.payments);
+        let info = style(client.info.unwrap_or("".to_string())).black().bright().to_string();
 
-        report.add_item([name, months_left, sellers].to_vec());
+        report.add_item([name, months_left, sellers, info].to_vec());
     }
 
     report.show();
+    Ok(None)
+}
+
+fn set_client_info(db: &dyn Database, args: &SetInfoArgs) -> Result<Option<String>, String> {
+    let target: Target = if args.all { Target::All } else { Target::OnePerson(input::get_client_name()) };
+    let last_info = match &target {
+        Target::OnePerson(name) => db.get_client_info(&name)?,
+        Target::All => "".to_string()
+    };
+
+    let new_info = input::get_info(Some(&last_info));
+    db.set_client_info(target, &new_info)?;
     Ok(None)
 }
 

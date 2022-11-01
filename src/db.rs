@@ -20,11 +20,13 @@ pub struct Client {
     #[serde(with="datetime_serializer")]
     pub expire_time: DateTime<Utc>,
 
-    pub payments: Vec<Payment>
+    pub payments: Vec<Payment>,
+
+    pub info: Option<String>
 }
 
 impl Client {
-    fn new(name: &str, days: u32, seller: &str, money: u32) -> Client {
+    fn new(name: &str, days: u32, seller: &str, money: u32, info: &str) -> Client {
         let now_date = Utc::now();
         let expire_time = now_date + Duration::days(days.into());
 
@@ -32,15 +34,23 @@ impl Client {
             name: name.to_string(),
             expire_time,
             payments: vec![Payment { seller: seller.to_string(), money, date: now_date }],
+            info: Some(info.to_string())
         }
     }
 }
 
+pub enum Target {
+    All,
+    OnePerson(String)
+}
+
 pub trait Database {
-    fn add_client(&self, name: &str, days: u32, seller: &str, money: u32) -> Result<(), String>;
+    fn add_client(&self, name: &str, days: u32, seller: &str, money: u32, info: &str) -> Result<(), String>;
     fn renew_client(&self, name: &str, days: u32, seller: &str, money: u32) -> Result<(), String>;
     fn delete_client(&self, name: &str) -> Result<(), String>;
     fn list_clients(&self) -> Result<Vec<Client>, String>;
+    fn set_client_info(&self, target: Target, info: &str) -> Result<(), String>;
+    fn get_client_info(&self, name: &str) -> Result<String, String>;
 }
 
 pub trait BackupableDatabase {
