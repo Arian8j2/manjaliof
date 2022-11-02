@@ -63,34 +63,35 @@ fn main() -> ExitCode {
 }
 
 fn try_main() -> Result<(), String> {
-    let args = Cli::parse();
+    let cli = Cli::parse();
 
     let db_path = Path::new(&get_data_path()?).join(DB_FILE_NAME);
     let db = JsonDb::new(db_path.to_str().unwrap());
     let backup = db.get_backup()?;
 
-    let post_script_name = get_command_post_script(&args.command, args.skip_post_script);
-    let result = {
-        let post_script_arg = match &args.command {
-            Commands::Add => add_client(&db)?,
-            Commands::Renew => renew_client(&db)?,
-            Commands::Delete => delete_client(&db)?,
-            Commands::List => list_clients(&db)?,
-            Commands::SetInfo(args) => set_client_info(&db, args)?,
-        };
-
-        if let (Some(name), Some(arg)) = (post_script_name, post_script_arg){
-            run_post_script(name, &arg)?;
-        }
-        
-        Ok(())
-    };
-
-    if result.is_err() && args.command != Commands::List {
+    let command_result = try_run_command(&cli, &db);
+    if command_result.is_err() && cli.command != Commands::List {
         db.restore_backup(backup)?;
     }
 
-    result
+    command_result
+}
+
+fn try_run_command(cli: &Cli, db: &dyn Database) -> Result<(), String> {
+    let post_script_name = get_command_post_script(&cli.command, cli.skip_post_script);
+    let post_script_arg = match &cli.command {
+        Commands::Add => add_client(db)?,
+        Commands::Renew => renew_client(db)?,
+        Commands::Delete => delete_client(db)?,
+        Commands::List => list_clients(db)?,
+        Commands::SetInfo(args) => set_client_info(db, &args)?,
+    };
+
+    if let (Some(name), Some(arg)) = (post_script_name, post_script_arg){
+        run_post_script(name, &arg)?;
+    }
+    
+    Ok(())
 }
 
 fn add_client(db: &dyn Database) -> Result<Option<String>, String> {
