@@ -1,0 +1,18 @@
+on: [push]
+
+name: build
+
+jobs:
+  build:
+    name: Compile Manjaliof
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+      - run: cargo build --release
+      - uses: actions/upload-artifact@v3
+        with:
+          name: manjaliof-bin
+          path: target/release/manjaliof
