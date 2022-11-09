@@ -172,7 +172,12 @@ fn run_post_script(script_name: &str, arg: &str) -> Result<(), String> {
 
     if !output.status.success() {
         let mut output_stderr = std::str::from_utf8(output.stderr.as_slice()).unwrap().to_string();
-        output_stderr.pop(); // remove new line
+        if let Some(last_char) = output_stderr.chars().last() {
+            if last_char == '\n' {
+                output_stderr.pop();
+            }
+        }
+
         return Err(format!("post script exited due to a failure: {}", output_stderr));
     }
 
