@@ -53,7 +53,7 @@ impl Database for JsonDb {
         Ok(())
     }
 
-    fn delete_client(&self, name: &str) -> Result<(), String> {
+    fn remove_client(&self, name: &str) -> Result<(), String> {
         let mut clients: Vec<Client> = self.list_clients()?;
         let index: usize = match clients.iter().position(|client| { client.name == name }) {
             Some(index) => index,

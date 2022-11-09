@@ -47,7 +47,7 @@ pub enum Target {
 pub trait Database {
     fn add_client(&self, name: &str, days: u32, seller: &str, money: u32, info: &str) -> Result<(), String>;
     fn renew_client(&self, name: &str, days: u32, seller: &str, money: u32) -> Result<(), String>;
-    fn delete_client(&self, name: &str) -> Result<(), String>;
+    fn remove_client(&self, name: &str) -> Result<(), String>;
     fn list_clients(&self) -> Result<Vec<Client>, String>;
     fn set_client_info(&self, target: Target, info: &str) -> Result<(), String>;
     fn get_client_info(&self, name: &str) -> Result<String, String>;

@@ -26,8 +26,8 @@ enum Commands {
     #[command(about="renew client")]
     Renew,
 
-    #[command(about="delete client")]
-    Delete,
+    #[command(about="remove client")]
+    Remove,
 
     #[command(about="show all clients")]
     List,
@@ -48,7 +48,7 @@ const POST_SCRIPTS_FOLDER_NAME: &str = "post_scripts";
 const MAP_COMMANDS_WITH_POST_SCRIPT: [(Commands, &str); 3] = [
     (Commands::Add, "add"),
     (Commands::Renew, "renew"),
-    (Commands::Delete, "delete")
+    (Commands::Remove, "delete")
 ];
 
 fn main() -> ExitCode {
@@ -82,7 +82,7 @@ fn try_run_command(cli: &Cli, db: &dyn Database) -> Result<(), String> {
     let post_script_arg = match &cli.command {
         Commands::Add => add_client(db)?,
         Commands::Renew => renew_client(db)?,
-        Commands::Delete => delete_client(db)?,
+        Commands::Remove => remove_client(db)?,
         Commands::List => list_clients(db)?,
         Commands::SetInfo(args) => set_client_info(db, &args)?,
     };
@@ -115,9 +115,9 @@ fn renew_client(db: &dyn Database) -> Result<Option<String>, String> {
     Ok(Some(name))
 }
 
-fn delete_client(db: &dyn Database) -> Result<Option<String>, String> {
+fn remove_client(db: &dyn Database) -> Result<Option<String>, String> {
     let name = input::get_client_name();
-    db.delete_client(&name)?;
+    db.remove_client(&name)?;
 
     Ok(Some(name))
 }
