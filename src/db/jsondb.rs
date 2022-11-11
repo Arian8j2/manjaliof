@@ -72,6 +72,16 @@ impl Database for JsonDb {
         serde_json::from_reader(file).map_err(|error| format!("cannot parse json: {}", error.to_string()))
     }
 
+    fn rename_client(&self, old_name: &str, new_name: &str) -> Result<(), String> {
+        let mut clients: Vec<Client> = self.list_clients()?;
+        let mut client = clients.iter_mut().find(|client| client.name == old_name)
+            .ok_or(format!("client with name '{}' doesn't exists!", old_name))?;
+        client.name = new_name.to_string();
+
+        self.save_clients(clients)?;
+        Ok(())
+    }
+
     fn set_client_info(&self, target: Target, info: &str) -> Result<(), String> {
         let mut clients: Vec<Client> = self.list_clients()?;
 

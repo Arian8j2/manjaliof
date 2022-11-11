@@ -8,6 +8,10 @@ pub fn get_client_name() -> String {
     Input::with_theme(&get_theme()).with_prompt("client name").interact_text().unwrap()
 }
 
+pub fn get_client_new_name() -> String {
+    Input::with_theme(&get_theme()).with_prompt("client new name").interact_text().unwrap()
+}
+
 pub fn get_seller() -> String {
     let reffer_index: usize = Select::with_theme(&get_theme()).with_prompt("who gets money")
                                                               .items(&REFFERS).interact().unwrap();

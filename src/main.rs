@@ -32,6 +32,9 @@ enum Commands {
     #[command(about="show all clients")]
     List,
 
+    #[command(about="rename client")]
+    Rename,
+
     #[command(about="set client info")]
     SetInfo(SetInfoArgs)
 }
@@ -42,13 +45,16 @@ struct SetInfoArgs {
     all: bool
 }
 
+type PostScriptArgs = Option<Vec<String>>;
+
 const DATA_PATH_ENV_NAME: &str = "MANJALIOF_DATA";
 const DB_FILE_NAME: &str = "data.json";
 const POST_SCRIPTS_FOLDER_NAME: &str = "post_scripts";
-const MAP_COMMANDS_WITH_POST_SCRIPT: [(Commands, &str); 3] = [
+const MAP_COMMANDS_WITH_POST_SCRIPT: [(Commands, &str); 4] = [
     (Commands::Add, "add"),
     (Commands::Renew, "renew"),
-    (Commands::Remove, "delete")
+    (Commands::Remove, "delete"),
+    (Commands::Rename, "rename")
 ];
 
 fn main() -> ExitCode {
@@ -84,45 +90,43 @@ fn try_run_command(cli: &Cli, db: &dyn Database) -> Result<(), String> {
         Commands::Renew => renew_client(db)?,
         Commands::Remove => remove_client(db)?,
         Commands::List => list_clients(db)?,
+        Commands::Rename => rename_client(db)?,
         Commands::SetInfo(args) => set_client_info(db, &args)?,
     };
 
-    if let (Some(name), Some(arg)) = (post_script_name, post_script_arg){
-        run_post_script(name, &arg)?;
+    if let (Some(name), Some(args)) = (post_script_name, post_script_arg){
+        run_post_script(name, args)?;
     }
     
     Ok(())
 }
 
-fn add_client(db: &dyn Database) -> Result<Option<String>, String> {
+fn add_client(db: &dyn Database) -> Result<PostScriptArgs, String> {
     let name = input::get_client_name();
     let days = input::get_days();
     let seller = input::get_seller();
     let money = input::get_money_amount();
     let info = input::get_info(None);
     db.add_client(&name, days, &seller, money, &info)?;
-
-    Ok(Some(name))
+    Ok(Some(vec![name]))
 }
 
-fn renew_client(db: &dyn Database) -> Result<Option<String>, String> {
+fn renew_client(db: &dyn Database) -> Result<PostScriptArgs, String> {
     let name = input::get_client_name();
     let days = input::get_days();
     let seller = input::get_seller();
     let money = input::get_money_amount();
     db.renew_client(&name, days, &seller, money)?;
-
-    Ok(Some(name))
+    Ok(Some(vec![name]))
 }
 
-fn remove_client(db: &dyn Database) -> Result<Option<String>, String> {
+fn remove_client(db: &dyn Database) -> Result<PostScriptArgs, String> {
     let name = input::get_client_name();
     db.remove_client(&name)?;
-
-    Ok(Some(name))
+    Ok(Some(vec![name]))
 }
 
-fn list_clients(db: &dyn Database) -> Result<Option<String>, String> {
+fn list_clients(db: &dyn Database) -> Result<PostScriptArgs, String> {
     let mut clients = db.list_clients()?;
     clients.sort_by_key(|client| client.expire_time);
     clients.reverse();
@@ -141,7 +145,14 @@ fn list_clients(db: &dyn Database) -> Result<Option<String>, String> {
     Ok(None)
 }
 
-fn set_client_info(db: &dyn Database, args: &SetInfoArgs) -> Result<Option<String>, String> {
+fn rename_client(db: &dyn Database) -> Result<PostScriptArgs, String> {
+    let old_name = input::get_client_name();
+    let new_name = input::get_client_new_name();
+    db.rename_client(&old_name, &new_name)?;
+    Ok(Some(vec![old_name, new_name]))
+}
+
+fn set_client_info(db: &dyn Database, args: &SetInfoArgs) -> Result<PostScriptArgs, String> {
     let target: Target = if args.all { Target::All } else { Target::OnePerson(input::get_client_name()) };
     let last_info = match &target {
         Target::OnePerson(name) => db.get_client_info(&name)?,
@@ -165,9 +176,9 @@ fn get_command_post_script(command: &Commands, skip: bool) -> Option<&'static st
     }
 }
 
-fn run_post_script(script_name: &str, arg: &str) -> Result<(), String> {
+fn run_post_script(script_name: &str, args: Vec<String>) -> Result<(), String> {
     let script_path = Path::new(&get_data_path()?).join(POST_SCRIPTS_FOLDER_NAME).join(script_name);
-    let output = Command::new(&script_path).arg(arg).output().map_err(
+    let output = Command::new(&script_path).args(args).output().map_err(
         |error| format!("couldn't run post script '{}': {}", script_path.to_str().unwrap(), error.to_string()))?;
 
     if !output.status.success() {
