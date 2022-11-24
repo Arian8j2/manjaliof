@@ -1,6 +1,5 @@
 use chrono::{DateTime, Utc};
 use dialoguer::console::style;
-use std::collections::HashMap;
 use crate::db::Payment;
 
 pub fn calculate_days_left(expire_time: DateTime<Utc>) -> String {
@@ -19,18 +18,8 @@ pub fn calculate_days_left(expire_time: DateTime<Utc>) -> String {
 }
 
 pub fn calculate_sellers(payments: &Vec<Payment>) -> String {
-    let mut sellers: HashMap<&str, u32> = HashMap::new();
-    for payment in payments {
-        let entry = sellers.entry(&payment.seller).or_insert(0);
-        *entry += payment.money;
-    }
-
-    let mut sellers_string: Vec<String> = Vec::new();
-    for seller in sellers {
-        let seller_string = format!("{}({})", seller.0, seller.1);
-        sellers_string.push(seller_string);
-    }
-
-    sellers_string.join(",")
+    assert!(!payments.is_empty());
+    let last_payment = payments.iter().rev().next().unwrap();
+    format!("{}({})", last_payment.seller, last_payment.money)
 }
 
