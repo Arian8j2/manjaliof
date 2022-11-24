@@ -116,7 +116,12 @@ fn renew_client(db: &dyn Database) -> Result<PostScriptArgs, String> {
     let days = input::get_days();
     let seller = input::get_seller();
     let money = input::get_money_amount();
+
+    let last_info = db.get_client_info(&name)?;
+    let new_info = input::get_info(Some(&last_info));
+
     db.renew_client(&name, days, &seller, money)?;
+    db.set_client_info(Target::OnePerson(name.clone()), &new_info)?;
     Ok(Some(vec![name]))
 }
 
