@@ -7,6 +7,7 @@ use db::{Database, BackupableDatabase, jsondb::JsonDb, Target};
 use clap::{Args, Parser, Subcommand};
 use dialoguer::console::style;
 use report::{Report, client_report};
+use chrono::Utc;
 
 #[derive(Parser)]
 #[command(about="this program will always remain manjaliof")]
@@ -39,7 +40,10 @@ enum Commands {
     Rename,
 
     #[command(about="set client info")]
-    SetInfo(SetInfoArgs)
+    SetInfo(SetInfoArgs),
+
+    #[command(about="remove expired clients that are expired long time ago")]
+    Cleanup
 }
 
 #[derive(Args, PartialEq)]
@@ -90,6 +94,7 @@ fn try_run_command(cli: &Cli, db: &dyn Database) -> Result<(), String> {
         Commands::List => list_clients(db)?,
         Commands::Rename => rename_client(db)?,
         Commands::SetInfo(args) => set_client_info(db, &args)?,
+        Commands::Cleanup => cleanup(db)?
     };
 
     if let (Some(name), Some(args)) = (post_script_name, post_script_arg){
@@ -171,6 +176,22 @@ fn set_client_info(db: &dyn Database, args: &SetInfoArgs) -> Result<PostScriptAr
 
     let new_info = input::get_info(Some(&last_info));
     db.set_client_info(target, &new_info)?;
+    Ok(None)
+}
+
+fn cleanup(db: &dyn Database) -> Result<PostScriptArgs, String> {
+    let now_time = Utc::now();
+
+    let clients = db.list_clients()?;
+    for client in clients {
+        let is_expired_one_month_ago = (now_time - client.expire_time).num_days() >= 30;
+        if is_expired_one_month_ago {
+            db.remove_client(&client.name)?;
+            run_post_script("delete", vec![client.name.clone()])?;
+            println!("{}", style(format!("deleted {}", client.name)).yellow());
+        }
+    }
+
     Ok(None)
 }
 
