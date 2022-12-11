@@ -2,7 +2,7 @@ mod input;
 mod db;
 mod report;
 
-use std::{env, process::Command, process::ExitCode, path::Path};
+use std::{env, process, process::ExitCode, path::Path};
 use db::{Database, BackupableDatabase, jsondb::JsonDb, Target};
 use clap::{Args, Parser, Subcommand};
 use dialoguer::console::style;
@@ -25,6 +25,9 @@ enum Commands {
 
     #[command(about="renew client")]
     Renew,
+
+    #[command(about="renew all clients that are not expired")]
+    RenewAll,
 
     #[command(about="remove client")]
     Remove,
@@ -50,12 +53,6 @@ type PostScriptArgs = Option<Vec<String>>;
 const DATA_PATH_ENV_NAME: &str = "MANJALIOF_DATA";
 const DB_FILE_NAME: &str = "data.json";
 const POST_SCRIPTS_FOLDER_NAME: &str = "post_scripts";
-const MAP_COMMANDS_WITH_POST_SCRIPT: [(Commands, &str); 4] = [
-    (Commands::Add, "add"),
-    (Commands::Renew, "renew"),
-    (Commands::Remove, "delete"),
-    (Commands::Rename, "rename")
-];
 
 fn main() -> ExitCode {
     match try_main() {
@@ -88,6 +85,7 @@ fn try_run_command(cli: &Cli, db: &dyn Database) -> Result<(), String> {
     let post_script_arg = match &cli.command {
         Commands::Add => add_client(db)?,
         Commands::Renew => renew_client(db)?,
+        Commands::RenewAll => renew_all_clients(db)?,
         Commands::Remove => remove_client(db)?,
         Commands::List => list_clients(db)?,
         Commands::Rename => rename_client(db)?,
@@ -123,6 +121,13 @@ fn renew_client(db: &dyn Database) -> Result<PostScriptArgs, String> {
     db.renew_client(&name, days, &seller, money)?;
     db.set_client_info(Target::OnePerson(name.clone()), &new_info)?;
     Ok(Some(vec![name]))
+}
+
+fn renew_all_clients(db: &dyn Database) -> Result<PostScriptArgs, String> {
+    println!("{}", style("you are renewing all clients that are not expired!").yellow());
+    let days = input::get_days();
+    db.renew_all_clients(days)?;
+    Ok(None)
 }
 
 fn remove_client(db: &dyn Database) -> Result<PostScriptArgs, String> {
@@ -175,15 +180,18 @@ fn get_command_post_script(command: &Commands, skip: bool) -> Option<&'static st
         return None
     }
 
-    match MAP_COMMANDS_WITH_POST_SCRIPT.iter().find(|command_with_post_script| command_with_post_script.0 == *command) {
-        Some(command_with_post_script) => Some(command_with_post_script.1),
-        None => None
+    match &command {
+        Commands::Add => Some("add"),
+        Commands::Renew => Some("renew"),
+        Commands::Remove => Some("delete"),
+        Commands::Rename => Some("rename"),
+        _ => None
     }
 }
 
 fn run_post_script(script_name: &str, args: Vec<String>) -> Result<(), String> {
     let script_path = Path::new(&get_data_path()?).join(POST_SCRIPTS_FOLDER_NAME).join(script_name);
-    let output = Command::new(&script_path).args(args).output().map_err(
+    let output = process::Command::new(&script_path).args(args).output().map_err(
         |error| format!("couldn't run post script '{}': {}", script_path.to_str().unwrap(), error.to_string()))?;
 
     if !output.status.success() {

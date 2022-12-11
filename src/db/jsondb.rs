@@ -53,6 +53,23 @@ impl Database for JsonDb {
         Ok(())
     }
 
+    fn renew_all_clients(&self, days: u32) -> Result<(), String> {
+        let mut clients = self.list_clients()?;
+        let now_date = Utc::now();
+
+        for client in clients.iter_mut() {
+            let is_expired = client.expire_time < now_date; 
+            if is_expired {
+                continue;
+            }
+
+            client.expire_time += Duration::days(days.into());
+        }
+
+        self.save_clients(clients)?;
+        Ok(())
+    }
+
     fn remove_client(&self, name: &str) -> Result<(), String> {
         let mut clients: Vec<Client> = self.list_clients()?;
         let index: usize = match clients.iter().position(|client| { client.name == name }) {
