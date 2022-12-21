@@ -184,8 +184,8 @@ fn cleanup(db: &dyn Database) -> Result<PostScriptArgs, String> {
 
     let clients = db.list_clients()?;
     for client in clients {
-        let is_expired_one_month_ago = (now_time - client.expire_time).num_days() >= 30;
-        if is_expired_one_month_ago {
+        let is_expired_ten_days_ago = (now_time - client.expire_time).num_days() >= 10;
+        if is_expired_ten_days_ago {
             db.remove_client(&client.name)?;
             run_post_script("delete", vec![client.name.clone()])?;
             println!("{}", style(format!("deleted {}", client.name)).yellow());
