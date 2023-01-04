@@ -3,7 +3,7 @@ mod db;
 mod input;
 mod report;
 
-use cli::{Commands, Cli, AddArgs, SetInfoArgs};
+use cli::{Commands, Cli, AddArgs, RenewArgs, SetInfoArgs};
 use clap::Parser;
 use std::{env, process, process::ExitCode, path::Path};
 use db::{Database, BackupableDatabase, jsondb::JsonDb, Target};
@@ -47,7 +47,7 @@ fn try_run_command(cli: &Cli, db: &dyn Database) -> Result<(), String> {
     let post_script_name = get_command_post_script(&cli.command, cli.skip_post_script);
     let post_script_arg = match &cli.command {
         Commands::Add(args) => add_client(db, args)?,
-        Commands::Renew => renew_client(db)?,
+        Commands::Renew(args) => renew_client(db, args)?,
         Commands::RenewAll => renew_all_clients(db)?,
         Commands::Remove => remove_client(db)?,
         Commands::List => list_clients(db)?,
@@ -78,17 +78,24 @@ fn add_client(db: &dyn Database, args: &AddArgs) -> Result<PostScriptArgs, Strin
     Ok(Some(vec![name]))
 }
 
-fn renew_client(db: &dyn Database) -> Result<PostScriptArgs, String> {
-    let name = input::get_client_name();
-    let days = input::get_days();
-    let seller = input::get_seller();
-    let money = input::get_money_amount();
+fn renew_client(db: &dyn Database, args: &RenewArgs) -> Result<PostScriptArgs, String> {
+    let name = args.name.clone().unwrap_or_else(input::get_client_name);
+    let days = args.days.unwrap_or_else(input::get_days);
+    let seller = args.seller.clone().unwrap_or_else(input::get_seller);
+    let money = args.money.unwrap_or_else(input::get_money_amount);
+    let mut info = args.info.clone().unwrap_or(String::new());
 
-    let last_info = db.get_client_info(&name)?;
-    let new_info = input::get_info(Some(&last_info));
+    if info.is_empty() {
+        let last_info = db.get_client_info(&name)?;
+        info = input::get_info(Some(&last_info));
+    }
+
+    input::validators::validate_name(&name)?;
+    input::validators::validate_seller(&seller)?;
+    input::validators::validate_info(&info)?;
 
     db.renew_client(&name, days, &seller, money)?;
-    db.set_client_info(Target::OnePerson(name.clone()), &new_info)?;
+    db.set_client_info(Target::OnePerson(name.clone()), &info)?;
     Ok(Some(vec![name]))
 }
 
@@ -167,7 +174,7 @@ fn get_command_post_script(command: &Commands, skip: bool) -> Option<&'static st
 
     match &command {
         Commands::Add(_) => Some("add"),
-        Commands::Renew => Some("renew"),
+        Commands::Renew(_) => Some("renew"),
         Commands::Remove => Some("delete"),
         Commands::Rename => Some("rename"),
         _ => None

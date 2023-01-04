@@ -18,7 +18,7 @@ impl Validator<String> for NumberValidator {
 }
 
 pub fn validate_name(name: &String) -> Result<(), String> {
-    if name.contains(' ') || name.len() > MAX_NAME_LENGTH || !name.is_ascii() {
+    if name.is_empty() || name.contains(' ') || name.len() > MAX_NAME_LENGTH || !name.is_ascii() {
         return Err(format!("cannot validate name: it must be ascii and not contain \
                             space and be less than equal to {} characters.", MAX_NAME_LENGTH));
     }
@@ -33,7 +33,7 @@ pub fn validate_seller(seller: &String) -> Result<(), String> {
 }
 
 pub fn validate_info(info: &String) -> Result<(), String> {
-    if info.len() > MAX_INFO_LENGTH {
+    if info.is_empty() || info.len() > MAX_INFO_LENGTH {
         return Err(format!("cannot validate info: max length of info is {}", MAX_INFO_LENGTH));
     }
     Ok(())

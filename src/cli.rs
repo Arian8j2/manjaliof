@@ -16,7 +16,7 @@ pub enum Commands {
     Add(AddArgs),
 
     #[command(about="renew client")]
-    Renew,
+    Renew(RenewArgs),
 
     #[command(about="renew all clients that are not expired")]
     RenewAll,
@@ -60,3 +60,5 @@ pub struct AddArgs {
     #[arg(long)]
     pub info: Option<String>,
 }
+
+pub type RenewArgs = AddArgs;
