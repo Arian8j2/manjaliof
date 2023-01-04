@@ -1,6 +1,9 @@
 use dialoguer::Validator;
 
-const MAX_SHORT_STRING_LENGTH: usize = 64;
+use super::SELLERS;
+
+const MAX_NAME_LENGTH: usize = 35;
+const MAX_INFO_LENGTH: usize = 64;
 
 pub struct NumberValidator {}
 impl Validator<String> for NumberValidator {
@@ -14,15 +17,24 @@ impl Validator<String> for NumberValidator {
     }
 }
 
-pub struct ShortStringValidator {}
-impl Validator<String> for ShortStringValidator {
-    type Err = String;
-
-    fn validate(&mut self, input: &String) -> Result<(), Self::Err> {
-        if input.len() > MAX_SHORT_STRING_LENGTH {
-            return Err(format!("max length of this field is {} characters", MAX_SHORT_STRING_LENGTH));
-        }
-        
-        Ok(())
+pub fn validate_name(name: &String) -> Result<(), String> {
+    if name.contains(' ') || name.len() > MAX_NAME_LENGTH || !name.is_ascii() {
+        return Err(format!("cannot validate name: it must be ascii and not contain \
+                            space and be less than equal to {} characters.", MAX_NAME_LENGTH));
     }
+    Ok(())
+}
+
+pub fn validate_seller(seller: &String) -> Result<(), String> {
+    if !SELLERS.contains(&seller.as_str()) {
+        return Err(format!("cannot validate seller: only this sellers are valid: {}", SELLERS.join(", ")));
+    }
+    Ok(())
+}
+
+pub fn validate_info(info: &String) -> Result<(), String> {
+    if info.len() > MAX_INFO_LENGTH {
+        return Err(format!("cannot validate info: max length of info is {}", MAX_INFO_LENGTH));
+    }
+    Ok(())
 }

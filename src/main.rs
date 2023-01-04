@@ -1,56 +1,15 @@
-mod input;
+mod cli;
 mod db;
+mod input;
 mod report;
 
+use cli::{Commands, Cli, AddArgs, SetInfoArgs};
+use clap::Parser;
 use std::{env, process, process::ExitCode, path::Path};
 use db::{Database, BackupableDatabase, jsondb::JsonDb, Target};
-use clap::{Args, Parser, Subcommand};
 use dialoguer::console::style;
 use report::{Report, client_report};
 use chrono::Utc;
-
-#[derive(Parser)]
-#[command(about="this program will always remain manjaliof")]
-struct Cli {
-    #[command(subcommand)] 
-    command: Commands,
-
-    #[arg(long, default_value_t = false)]
-    skip_post_script: bool
-}
-
-#[derive(Subcommand, PartialEq)]
-enum Commands {
-    #[command(about="adds new client to db")]
-    Add,
-
-    #[command(about="renew client")]
-    Renew,
-
-    #[command(about="renew all clients that are not expired")]
-    RenewAll,
-
-    #[command(about="remove client")]
-    Remove,
-
-    #[command(about="show all clients")]
-    List,
-
-    #[command(about="rename client")]
-    Rename,
-
-    #[command(about="set client info")]
-    SetInfo(SetInfoArgs),
-
-    #[command(about="remove expired clients that are expired long time ago")]
-    Cleanup
-}
-
-#[derive(Args, PartialEq)]
-struct SetInfoArgs {
-    #[arg(short, long, default_value_t = false)]
-    all: bool
-}
 
 type PostScriptArgs = Option<Vec<String>>;
 
@@ -87,7 +46,7 @@ fn try_main() -> Result<(), String> {
 fn try_run_command(cli: &Cli, db: &dyn Database) -> Result<(), String> {
     let post_script_name = get_command_post_script(&cli.command, cli.skip_post_script);
     let post_script_arg = match &cli.command {
-        Commands::Add => add_client(db)?,
+        Commands::Add(args) => add_client(db, args)?,
         Commands::Renew => renew_client(db)?,
         Commands::RenewAll => renew_all_clients(db)?,
         Commands::Remove => remove_client(db)?,
@@ -104,12 +63,17 @@ fn try_run_command(cli: &Cli, db: &dyn Database) -> Result<(), String> {
     Ok(())
 }
 
-fn add_client(db: &dyn Database) -> Result<PostScriptArgs, String> {
-    let name = input::get_client_name();
-    let days = input::get_days();
-    let seller = input::get_seller();
-    let money = input::get_money_amount();
-    let info = input::get_info(None);
+fn add_client(db: &dyn Database, args: &AddArgs) -> Result<PostScriptArgs, String> {
+    let name = args.name.clone().unwrap_or_else(input::get_client_name);
+    let days = args.days.unwrap_or_else(input::get_days);
+    let seller = args.seller.clone().unwrap_or_else(input::get_seller);
+    let money = args.money.unwrap_or_else(input::get_money_amount);
+    let info = args.info.clone().unwrap_or_else(|| input::get_info(None));
+
+    input::validators::validate_name(&name)?;
+    input::validators::validate_seller(&seller)?;
+    input::validators::validate_info(&info)?;
+
     db.add_client(&name, days, &seller, money, &info)?;
     Ok(Some(vec![name]))
 }
@@ -202,7 +166,7 @@ fn get_command_post_script(command: &Commands, skip: bool) -> Option<&'static st
     }
 
     match &command {
-        Commands::Add => Some("add"),
+        Commands::Add(_) => Some("add"),
         Commands::Renew => Some("renew"),
         Commands::Remove => Some("delete"),
         Commands::Rename => Some("rename"),
