@@ -3,7 +3,7 @@ mod db;
 mod input;
 mod report;
 
-use cli::{Commands, Cli, AddArgs, RenewArgs, SetInfoArgs};
+use cli::{Commands, Cli, AddArgs, RenewArgs, RemoveArgs, SetInfoArgs};
 use clap::Parser;
 use std::{env, process, process::ExitCode, path::Path};
 use db::{Database, BackupableDatabase, jsondb::JsonDb, Target};
@@ -49,7 +49,7 @@ fn try_run_command(cli: &Cli, db: &dyn Database) -> Result<(), String> {
         Commands::Add(args) => add_client(db, args)?,
         Commands::Renew(args) => renew_client(db, args)?,
         Commands::RenewAll => renew_all_clients(db)?,
-        Commands::Remove => remove_client(db)?,
+        Commands::Remove(args) => remove_client(db, args)?,
         Commands::List => list_clients(db)?,
         Commands::Rename => rename_client(db)?,
         Commands::SetInfo(args) => set_client_info(db, &args)?,
@@ -106,8 +106,9 @@ fn renew_all_clients(db: &dyn Database) -> Result<PostScriptArgs, String> {
     Ok(None)
 }
 
-fn remove_client(db: &dyn Database) -> Result<PostScriptArgs, String> {
-    let name = input::get_client_name();
+fn remove_client(db: &dyn Database, args: &RemoveArgs) -> Result<PostScriptArgs, String> {
+    let name = args.name.clone().unwrap_or_else(input::get_client_name);
+    input::validators::validate_name(&name)?;
     db.remove_client(&name)?;
     Ok(Some(vec![name]))
 }
@@ -175,7 +176,7 @@ fn get_command_post_script(command: &Commands, skip: bool) -> Option<&'static st
     match &command {
         Commands::Add(_) => Some("add"),
         Commands::Renew(_) => Some("renew"),
-        Commands::Remove => Some("delete"),
+        Commands::Remove(_) => Some("delete"),
         Commands::Rename => Some("rename"),
         _ => None
     }

@@ -22,7 +22,7 @@ pub enum Commands {
     RenewAll,
 
     #[command(about="remove client")]
-    Remove,
+    Remove(RemoveArgs),
 
     #[command(about="show all clients")]
     List,
@@ -62,3 +62,9 @@ pub struct AddArgs {
 }
 
 pub type RenewArgs = AddArgs;
+
+#[derive(Args, PartialEq)]
+pub struct RemoveArgs {
+    #[arg(long)]
+    pub name: Option<String>
+}
