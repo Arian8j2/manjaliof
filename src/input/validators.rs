@@ -18,10 +18,14 @@ impl Validator<String> for NumberValidator {
 }
 
 pub fn validate_name(name: &String) -> Result<(), String> {
-    if name.is_empty() || name.contains(' ') || name.len() > MAX_NAME_LENGTH || !name.is_ascii() {
-        return Err(format!("cannot validate name: it must be ascii and not contain \
-                            space and be less than equal to {} characters.", MAX_NAME_LENGTH));
+    if name.is_empty() || name.len() > MAX_NAME_LENGTH {
+        return Err("name is too short or too long".to_string());
     }
+
+    if !name.chars().all(|ch| char::is_ascii_alphanumeric(&ch) || ch == '-') {
+        return Err("name is not valid, only ascii alphanumeric values are valid".to_string());
+    }
+
     Ok(())
 }
 
