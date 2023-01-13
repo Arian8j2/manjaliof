@@ -45,19 +45,13 @@ pub enum Target {
 }
 
 pub trait Database {
-    fn add_client(&self, name: &str, days: u32, seller: &str, money: u32, info: &str) -> Result<(), String>;
-    fn renew_client(&self, name: &str, days: u32, seller: &str, money: u32) -> Result<(), String>;
-    fn renew_all_clients(&self, days: u32) -> Result<(), String>;
-    fn remove_client(&self, name: &str) -> Result<(), String>;
+    fn add_client(&mut self, name: &str, days: u32, seller: &str, money: u32, info: &str) -> Result<(), String>;
+    fn renew_client(&mut self, name: &str, days: u32, seller: &str, money: u32) -> Result<(), String>;
+    fn renew_all_clients(&mut self, days: u32) -> Result<(), String>;
+    fn remove_client(&mut self, name: &str) -> Result<(), String>;
     fn list_clients(&self) -> Result<Vec<Client>, String>;
-    fn rename_client(&self, old_name: &str, new_name: &str) -> Result<(), String>;
-    fn set_client_info(&self, target: Target, info: &str) -> Result<(), String>;
+    fn rename_client(&mut self, old_name: &str, new_name: &str) -> Result<(), String>;
+    fn set_client_info(&mut self, target: Target, info: &str) -> Result<(), String>;
     fn get_client_info(&self, name: &str) -> Result<String, String>;
-}
-
-pub trait BackupableDatabase {
-    type DbData;
-
-    fn get_backup(&self) -> Result<Self::DbData, String>;
-    fn restore_backup(&self, backup: Self::DbData) -> Result<(), String>;
+    fn commit(self) -> Result<(), String>;
 }

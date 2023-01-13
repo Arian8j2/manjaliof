@@ -6,7 +6,7 @@ mod report;
 use cli::{Commands, Cli, AddArgs, RenewArgs, RemoveArgs, SetInfoArgs};
 use clap::Parser;
 use std::{env, process, process::ExitCode, path::Path};
-use db::{Database, BackupableDatabase, jsondb::JsonDb, Target};
+use db::{Database, jsondb::JsonDb, Target};
 use dialoguer::console::style;
 use report::{Report, client_report};
 use chrono::Utc;
@@ -32,18 +32,17 @@ fn try_main() -> Result<(), String> {
     let cli = Cli::parse();
 
     let db_path = Path::new(&get_data_path()?).join(DB_FILE_NAME);
-    let db = JsonDb::new(db_path.to_str().unwrap());
-    let backup = db.get_backup()?;
+    let mut db = JsonDb::new(db_path.to_str().unwrap());
 
-    let command_result = try_run_command(&cli, &db);
-    if command_result.is_err() && cli.command != Commands::List {
-        db.restore_backup(backup)?;
+    let command_result = try_run_command(&cli, &mut db);
+    if !command_result.is_err() {
+        db.commit()?;
     }
 
     command_result
 }
 
-fn try_run_command(cli: &Cli, db: &dyn Database) -> Result<(), String> {
+fn try_run_command(cli: &Cli, db: &mut dyn Database) -> Result<(), String> {
     let post_script_name = get_command_post_script(&cli.command, cli.skip_post_script);
     let post_script_arg = match &cli.command {
         Commands::Add(args) => add_client(db, args)?,
@@ -63,7 +62,7 @@ fn try_run_command(cli: &Cli, db: &dyn Database) -> Result<(), String> {
     Ok(())
 }
 
-fn add_client(db: &dyn Database, args: &AddArgs) -> Result<PostScriptArgs, String> {
+fn add_client(db: &mut dyn Database, args: &AddArgs) -> Result<PostScriptArgs, String> {
     let name = args.name.clone().unwrap_or_else(input::get_client_name);
     let days = args.days.unwrap_or_else(input::get_days);
     let seller = args.seller.clone().unwrap_or_else(input::get_seller);
@@ -78,7 +77,7 @@ fn add_client(db: &dyn Database, args: &AddArgs) -> Result<PostScriptArgs, Strin
     Ok(Some(vec![name]))
 }
 
-fn renew_client(db: &dyn Database, args: &RenewArgs) -> Result<PostScriptArgs, String> {
+fn renew_client(db: &mut dyn Database, args: &RenewArgs) -> Result<PostScriptArgs, String> {
     let name = args.name.clone().unwrap_or_else(input::get_client_name);
     let days = args.days.unwrap_or_else(input::get_days);
     let seller = args.seller.clone().unwrap_or_else(input::get_seller);
@@ -99,14 +98,14 @@ fn renew_client(db: &dyn Database, args: &RenewArgs) -> Result<PostScriptArgs, S
     Ok(Some(vec![name]))
 }
 
-fn renew_all_clients(db: &dyn Database) -> Result<PostScriptArgs, String> {
+fn renew_all_clients(db: &mut dyn Database) -> Result<PostScriptArgs, String> {
     println!("{}", style("you are renewing all clients that are not expired!").yellow());
     let days = input::get_days();
     db.renew_all_clients(days)?;
     Ok(None)
 }
 
-fn remove_client(db: &dyn Database, args: &RemoveArgs) -> Result<PostScriptArgs, String> {
+fn remove_client(db: &mut dyn Database, args: &RemoveArgs) -> Result<PostScriptArgs, String> {
     let name = args.name.clone().unwrap_or_else(input::get_client_name);
     input::validators::validate_name(&name)?;
     db.remove_client(&name)?;
@@ -132,14 +131,14 @@ fn list_clients(db: &dyn Database) -> Result<PostScriptArgs, String> {
     Ok(None)
 }
 
-fn rename_client(db: &dyn Database) -> Result<PostScriptArgs, String> {
+fn rename_client(db: &mut dyn Database) -> Result<PostScriptArgs, String> {
     let old_name = input::get_client_name();
     let new_name = input::get_client_new_name();
     db.rename_client(&old_name, &new_name)?;
     Ok(Some(vec![old_name, new_name]))
 }
 
-fn set_client_info(db: &dyn Database, args: &SetInfoArgs) -> Result<PostScriptArgs, String> {
+fn set_client_info(db: &mut dyn Database, args: &SetInfoArgs) -> Result<PostScriptArgs, String> {
     let target: Target = if args.all { Target::All } else { Target::OnePerson(input::get_client_name()) };
     let last_info = match &target {
         Target::OnePerson(name) => db.get_client_info(&name)?,
@@ -151,7 +150,7 @@ fn set_client_info(db: &dyn Database, args: &SetInfoArgs) -> Result<PostScriptAr
     Ok(None)
 }
 
-fn cleanup(db: &dyn Database) -> Result<PostScriptArgs, String> {
+fn cleanup(db: &mut dyn Database) -> Result<PostScriptArgs, String> {
     let now_time = Utc::now();
 
     let clients = db.list_clients()?;
