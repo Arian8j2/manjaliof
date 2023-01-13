@@ -4,21 +4,15 @@ use crate::db::{Database, Client, Payment, Target};
 
 pub struct JsonDb {
     file_path: String,
-    transactions: Vec<Vec<Client>>
+    clients: Option<Vec<Client>>
 }
 
 impl JsonDb {
     pub fn new(file_path: &str) -> JsonDb {
         JsonDb {
             file_path: file_path.to_string(),
-            transactions: Vec::new()
+            clients: None
         }
-    }
-
-    fn save_clients(&self, clients: &Vec<Client>) -> Result<(), String> {
-        let json_string = serde_json::to_string_pretty(&clients).unwrap();
-        fs::write(&self.file_path, json_string.as_bytes()).map_err(
-            |error| format!("cannot write to file '{}': {}", self.file_path, error.to_string()))
     }
 }
 
@@ -31,7 +25,7 @@ impl Database for JsonDb {
 
         let client = Client::new(name, days, &seller, money, info);
         clients.push(client);
-        self.transactions.push(clients);
+        self.clients = Some(clients);
         Ok(())
     }
 
@@ -51,7 +45,7 @@ impl Database for JsonDb {
 
         client.expire_time += Duration::days(days.into());
         client.payments.push(Payment { seller: seller.to_string(), money, date: now_date });
-        self.transactions.push(clients);
+        self.clients = Some(clients);
         Ok(())
     }
 
@@ -68,7 +62,7 @@ impl Database for JsonDb {
             client.expire_time += Duration::days(days.into());
         }
 
-        self.transactions.push(clients);
+        self.clients = Some(clients);
         Ok(())
     }
 
@@ -80,11 +74,15 @@ impl Database for JsonDb {
         };
 
         clients.remove(index);
-        self.transactions.push(clients);
+        self.clients = Some(clients);
         Ok(())
     }
 
     fn list_clients(&self) -> Result<Vec<Client>, String> {
+        if let Some(clients) = &self.clients {
+            return Ok(clients.clone());
+        }
+
         let file = fs::File::open(&self.file_path).map_err(
             |error| format!("cannot open file '{}': {}", self.file_path, error.to_string()))?;
 
@@ -97,7 +95,7 @@ impl Database for JsonDb {
             .ok_or(format!("client with name '{}' doesn't exists!", old_name))?;
         client.name = new_name.to_string();
 
-        self.transactions.push(clients);
+        self.clients = Some(clients);
         Ok(())
     }
 
@@ -114,7 +112,7 @@ impl Database for JsonDb {
             client.info = Some(info.to_string());
         }
 
-        self.transactions.push(clients);
+        self.clients = Some(clients);
         Ok(())
     }
 
@@ -129,10 +127,12 @@ impl Database for JsonDb {
     }
 
     fn commit(self) -> Result<(), String> {
-        for trans in &self.transactions {
-            self.save_clients(&trans)?;
+        if let Some(clients) = self.clients {
+            let json_string = serde_json::to_string_pretty(&clients).unwrap();
+            fs::write(&self.file_path, json_string.as_bytes()).map_err(
+                |error| format!("cannot write to file '{}': {}", self.file_path, error.to_string()))?;
         }
 
-        Ok(()) 
+        Ok(())
     }
 }

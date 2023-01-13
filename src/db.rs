@@ -4,7 +4,7 @@ pub mod jsondb;
 use chrono::{DateTime, Duration, Utc};
 use serde::{Deserialize, Serialize};
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Clone)]
 pub struct Payment {
     pub seller: String,
     pub money: u32,
@@ -13,7 +13,7 @@ pub struct Payment {
     pub date: DateTime<Utc>
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Clone)]
 pub struct Client {
     pub name: String,
 
