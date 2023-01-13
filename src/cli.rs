@@ -34,7 +34,10 @@ pub enum Commands {
     SetInfo(SetInfoArgs),
 
     #[command(about="remove expired clients that are expired long time ago")]
-    Cleanup
+    Cleanup,
+
+    #[command(about="show message and sha256 of latest commit that is built from")]
+    Version
 }
 
 #[derive(Args, PartialEq)]

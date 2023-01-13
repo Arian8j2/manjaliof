@@ -52,7 +52,8 @@ fn try_run_command(cli: &Cli, db: &mut dyn Database) -> Result<(), String> {
         Commands::List => list_clients(db)?,
         Commands::Rename(args) => rename_client(db, args)?,
         Commands::SetInfo(args) => set_client_info(db, &args)?,
-        Commands::Cleanup => cleanup(db)?
+        Commands::Cleanup => cleanup(db)?,
+        Commands::Version => version()
     };
 
     if let (Some(name), Some(args)) = (post_script_name, post_script_arg){
@@ -220,4 +221,9 @@ fn get_data_path() -> Result<String, String> {
     let env_name = DATA_PATH_ENV_NAME;
     env::var(env_name).map_err(|_error|
         format!("please set '{env_name}' environment variable to point to manjaliof data folder"))
+}
+
+fn version() -> PostScriptArgs {
+    println!("{}\n{}", style(env!("VERGEN_GIT_SHA")).green(), env!("VERGEN_GIT_COMMIT_MESSAGE"));
+    None
 }
