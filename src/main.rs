@@ -3,7 +3,7 @@ mod db;
 mod input;
 mod report;
 
-use cli::{Commands, Cli, AddArgs, RenewArgs, RemoveArgs, SetInfoArgs, RenameArgs};
+use cli::{Commands, Cli, AddArgs, RenewArgs, RemoveArgs, SetInfoArgs, RenameArgs, RenewAllArgs};
 use clap::Parser;
 use std::{env, process, process::ExitCode, path::Path};
 use db::{Database, jsondb::JsonDb, Target};
@@ -47,7 +47,7 @@ fn try_run_command(cli: &Cli, db: &mut dyn Database) -> Result<(), String> {
     let post_script_arg = match &cli.command {
         Commands::Add(args) => add_client(db, args)?,
         Commands::Renew(args) => renew_client(db, args)?,
-        Commands::RenewAll => renew_all_clients(db)?,
+        Commands::RenewAll(args) => renew_all_clients(db, args)?,
         Commands::Remove(args) => remove_client(db, args)?,
         Commands::List => list_clients(db)?,
         Commands::Rename(args) => rename_client(db, args)?,
@@ -98,9 +98,9 @@ fn renew_client(db: &mut dyn Database, args: &RenewArgs) -> Result<PostScriptArg
     Ok(Some(vec![name]))
 }
 
-fn renew_all_clients(db: &mut dyn Database) -> Result<PostScriptArgs, String> {
+fn renew_all_clients(db: &mut dyn Database, args: &RenewAllArgs) -> Result<PostScriptArgs, String> {
     println!("{}", style("you are renewing all clients that are not expired!").yellow());
-    let days = input::get_days();
+    let days = args.days.unwrap_or_else(input::get_days);
     db.renew_all_clients(days)?;
     Ok(None)
 }

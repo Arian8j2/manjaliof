@@ -19,7 +19,7 @@ pub enum Commands {
     Renew(RenewArgs),
 
     #[command(about="renew all clients that are not expired")]
-    RenewAll,
+    RenewAll(RenewAllArgs),
 
     #[command(about="remove client")]
     Remove(RemoveArgs),
@@ -38,18 +38,6 @@ pub enum Commands {
 }
 
 #[derive(Args, PartialEq)]
-pub struct SetInfoArgs {
-    #[arg(long, default_value_t = false)]
-    pub all: bool,
-
-    #[arg(long)]
-    pub name: Option<String>,
-
-    #[arg(long)]
-    pub info: Option<String>,
-}
-
-#[derive(Args, PartialEq)]
 pub struct AddArgs {
     #[arg(long)]
     pub name: Option<String>,
@@ -64,10 +52,16 @@ pub struct AddArgs {
     pub money: Option<u32>,
 
     #[arg(long)]
-    pub info: Option<String>,
+    pub info: Option<String>
 }
 
 pub type RenewArgs = AddArgs;
+
+#[derive(Args, PartialEq)]
+pub struct RenewAllArgs {
+    #[arg(long)]
+    pub days: Option<u32>
+}
 
 #[derive(Args, PartialEq)]
 pub struct RemoveArgs {
@@ -82,4 +76,16 @@ pub struct RenameArgs {
 
     #[arg(long)]
     pub new_name: Option<String>
+}
+
+#[derive(Args, PartialEq)]
+pub struct SetInfoArgs {
+    #[arg(long, default_value_t = false)]
+    pub all: bool,
+
+    #[arg(long)]
+    pub name: Option<String>,
+
+    #[arg(long)]
+    pub info: Option<String>
 }
