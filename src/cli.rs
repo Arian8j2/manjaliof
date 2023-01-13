@@ -28,7 +28,7 @@ pub enum Commands {
     List,
 
     #[command(about="rename client")]
-    Rename,
+    Rename(RenameArgs),
 
     #[command(about="set client info")]
     SetInfo(SetInfoArgs),
@@ -73,4 +73,13 @@ pub type RenewArgs = AddArgs;
 pub struct RemoveArgs {
     #[arg(long)]
     pub name: Option<String>
+}
+
+#[derive(Args, PartialEq)]
+pub struct RenameArgs {
+    #[arg(long)]
+    pub old_name: Option<String>,
+
+    #[arg(long)]
+    pub new_name: Option<String>
 }

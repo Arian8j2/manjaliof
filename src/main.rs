@@ -3,7 +3,7 @@ mod db;
 mod input;
 mod report;
 
-use cli::{Commands, Cli, AddArgs, RenewArgs, RemoveArgs, SetInfoArgs};
+use cli::{Commands, Cli, AddArgs, RenewArgs, RemoveArgs, SetInfoArgs, RenameArgs};
 use clap::Parser;
 use std::{env, process, process::ExitCode, path::Path};
 use db::{Database, jsondb::JsonDb, Target};
@@ -50,7 +50,7 @@ fn try_run_command(cli: &Cli, db: &mut dyn Database) -> Result<(), String> {
         Commands::RenewAll => renew_all_clients(db)?,
         Commands::Remove(args) => remove_client(db, args)?,
         Commands::List => list_clients(db)?,
-        Commands::Rename => rename_client(db)?,
+        Commands::Rename(args) => rename_client(db, args)?,
         Commands::SetInfo(args) => set_client_info(db, &args)?,
         Commands::Cleanup => cleanup(db)?
     };
@@ -131,9 +131,12 @@ fn list_clients(db: &dyn Database) -> Result<PostScriptArgs, String> {
     Ok(None)
 }
 
-fn rename_client(db: &mut dyn Database) -> Result<PostScriptArgs, String> {
-    let old_name = input::get_client_name();
-    let new_name = input::get_client_new_name();
+fn rename_client(db: &mut dyn Database, args: &RenameArgs) -> Result<PostScriptArgs, String> {
+    let old_name = args.old_name.clone().unwrap_or_else(input::get_client_name);
+    let new_name = args.new_name.clone().unwrap_or_else(input::get_client_new_name);
+
+    input::validators::validate_name(&new_name)?;
+
     db.rename_client(&old_name, &new_name)?;
     Ok(Some(vec![old_name, new_name]))
 }
@@ -185,7 +188,7 @@ fn get_command_post_script(command: &Commands, skip: bool) -> Option<&'static st
         Commands::Add(_) => Some("add"),
         Commands::Renew(_) => Some("renew"),
         Commands::Remove(_) => Some("delete"),
-        Commands::Rename => Some("rename"),
+        Commands::Rename(_) => Some("rename"),
         _ => None
     }
 }
