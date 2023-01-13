@@ -39,8 +39,14 @@ pub enum Commands {
 
 #[derive(Args, PartialEq)]
 pub struct SetInfoArgs {
-    #[arg(short, long, default_value_t = false)]
-    pub all: bool
+    #[arg(long, default_value_t = false)]
+    pub all: bool,
+
+    #[arg(long)]
+    pub name: Option<String>,
+
+    #[arg(long)]
+    pub info: Option<String>,
 }
 
 #[derive(Args, PartialEq)]
