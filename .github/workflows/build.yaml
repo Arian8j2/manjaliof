@@ -1,17 +1,21 @@
 on: [push]
 
-name: build
+name: build&test
 
 jobs:
   build:
-    name: Compile Manjaliof
+    name: test and build Manjaliof
     runs-on: ubuntu-20.04
     steps:
       - uses: actions/checkout@v2
       - uses: actions-rs/toolchain@v1
         with:
           toolchain: stable
-      - run: cargo build --release
+      - name: Test
+        run: cargo test
+      - name: Build
+        run: cargo build --release
+
       - uses: actions/upload-artifact@v3
         with:
           name: manjaliof-bin
