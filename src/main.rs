@@ -14,7 +14,7 @@ use chrono::Utc;
 type PostScriptArgs = Option<Vec<String>>;
 
 const DATA_PATH_ENV_NAME: &str = "MANJALIOF_DATA";
-const DB_FILE_NAME: &str = "data.json";
+const DB_FILE_NAME: &str = "data.db";
 const POST_SCRIPTS_FOLDER_NAME: &str = "post_scripts";
 
 fn main() -> ExitCode {
@@ -32,7 +32,7 @@ fn try_main() -> Result<(), String> {
     let cli = Cli::parse();
 
     let db_path = Path::new(&get_data_path()?).join(DB_FILE_NAME);
-    let mut db = JsonDb::new(db_path.to_str().unwrap());
+    let mut db = JsonDb::new(db_path)?;
 
     let command_result = try_run_command(&cli, &mut db);
     if !command_result.is_err() {

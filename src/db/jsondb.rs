@@ -1,18 +1,23 @@
-use std::fs;
+use std::{fs, path::PathBuf};
 use chrono::{Duration, Utc};
 use crate::db::{Database, Client, Payment, Target};
 
 pub struct JsonDb {
-    file_path: String,
+    file_path: PathBuf,
     clients: Option<Vec<Client>>
 }
 
 impl JsonDb {
-    pub fn new(file_path: &str) -> JsonDb {
-        JsonDb {
-            file_path: file_path.to_string(),
-            clients: None
+    pub fn new(file_path: PathBuf) -> Result<JsonDb, String> {
+        if !file_path.is_file() {
+            fs::write(&file_path, "[]").map_err(|e| format!("cannot create database file at '{}': {}",
+                file_path.to_str().unwrap(), e.to_string()))?;
         }
+
+        Ok(JsonDb {
+            file_path,
+            clients: None
+        })
     }
 }
 
@@ -84,8 +89,7 @@ impl Database for JsonDb {
         }
 
         let file = fs::File::open(&self.file_path).map_err(
-            |error| format!("cannot open file '{}': {}", self.file_path, error.to_string()))?;
-
+            |error| format!("cannot open file '{}': {}", self.file_path.to_str().unwrap(), error.to_string()))?;
         serde_json::from_reader(file).map_err(|error| format!("cannot parse json: {}", error.to_string()))
     }
 
@@ -130,7 +134,7 @@ impl Database for JsonDb {
         if let Some(clients) = self.clients {
             let json_string = serde_json::to_string_pretty(&clients).unwrap();
             fs::write(&self.file_path, json_string.as_bytes()).map_err(
-                |error| format!("cannot write to file '{}': {}", self.file_path, error.to_string()))?;
+                |error| format!("cannot write to file '{}': {}", self.file_path.to_str().unwrap(), error.to_string()))?;
         }
 
         Ok(())
