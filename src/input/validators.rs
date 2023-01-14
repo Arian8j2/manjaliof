@@ -19,11 +19,11 @@ impl Validator<String> for NumberValidator {
 
 pub fn validate_name(name: &String) -> Result<(), String> {
     if name.is_empty() || name.len() > MAX_NAME_LENGTH {
-        return Err("name is too short or too long".to_string());
+        return Err("cannot validate name: text is too short or too long".to_string());
     }
 
     if !name.chars().all(|ch| char::is_ascii_alphanumeric(&ch) || ch == '-') {
-        return Err("name is not valid, only ascii alphanumeric values are valid".to_string());
+        return Err("cannot validate name: only ascii alphanumeric values are valid".to_string());
     }
 
     Ok(())
@@ -38,7 +38,7 @@ pub fn validate_seller(seller: &String) -> Result<(), String> {
 
 pub fn validate_info(info: &String) -> Result<(), String> {
     if info.is_empty() || info.len() > MAX_INFO_LENGTH {
-        return Err(format!("cannot validate info: max length of info is {}", MAX_INFO_LENGTH));
+        return Err(format!("cannot validate info: text is too short or too long"));
     }
     Ok(())
 }
