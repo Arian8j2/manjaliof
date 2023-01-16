@@ -12,3 +12,11 @@ pub fn deserialize<'a, D>(deserializer: D) -> Result<DateTime<Utc>, D::Error> wh
     let date_string = String::deserialize(deserializer)?;
     Utc.datetime_from_str(&date_string, FORMAT).map_err(serde::de::Error::custom)
 }
+
+pub fn datetime_to_str(date: &DateTime<Utc>) -> String {
+    date.format(FORMAT).to_string()
+}
+
+pub fn datetime_from_str(date_str: &str) -> DateTime<Utc> {
+    Utc.datetime_from_str(date_str, FORMAT).unwrap()
+}

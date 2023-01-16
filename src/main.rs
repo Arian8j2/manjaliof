@@ -6,7 +6,7 @@ mod report;
 use cli::{Commands, Cli, AddArgs, RenewArgs, RemoveArgs, SetInfoArgs, RenameArgs, RenewAllArgs};
 use clap::Parser;
 use std::{env, process, process::ExitCode, path::Path};
-use db::{Database, jsondb::JsonDb, Target};
+use db::{Database, sqlitedb::SqliteDb, Target};
 use dialoguer::console::style;
 use report::{Report, client_report};
 use chrono::Utc;
@@ -32,11 +32,12 @@ fn try_main() -> Result<(), String> {
     let cli = Cli::parse();
 
     let db_path = Path::new(&get_data_path()?).join(DB_FILE_NAME);
-    let mut db = JsonDb::new(db_path)?;
+    let mut conn = SqliteDb::create_connection(db_path)?;
+    let mut db = SqliteDb::new(&mut conn)?;
 
     let command_result = try_run_command(&cli, &mut db);
     if !command_result.is_err() {
-        db.commit()?;
+        db.commit().map_err(|e| format!("CRITICAL ERROR: cannot commit changes: {e}"))?;
     }
 
     command_result

@@ -8,6 +8,7 @@ pub struct JsonDb {
 }
 
 impl JsonDb {
+    #[allow(dead_code)]
     pub fn new(file_path: PathBuf) -> Result<JsonDb, String> {
         if !file_path.is_file() {
             fs::write(&file_path, "[]").map_err(|e| format!("cannot create database file at '{}': {}",
