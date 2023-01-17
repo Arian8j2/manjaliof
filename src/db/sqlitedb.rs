@@ -78,7 +78,7 @@ impl<'a> SqliteDb<'a> {
     }
 
     fn get_client_expire_date(&self, client_name: &str) -> Result<DateTime<Utc>, String> {
-        let mut stmt = try_sql!(self.trans.prepare("SELECT expire_date FROM clients WHERE name=?"));
+        let mut stmt = try_sql!(self.trans.prepare("SELECT expire_date FROM clients WHERE name=? LIMIT 1"));
         let mut rows = try_sql!(stmt.query([client_name]));
         let expire_date = match try_sql!(rows.next()) {
             Some(row) => {
@@ -223,7 +223,7 @@ impl Database for SqliteDb<'_> {
     }
 
     fn get_client_info(&self, name: &str) -> Result<String, String> {
-        let mut stmt = try_sql!(self.trans.prepare("SELECT info FROM clients WHERE name=?"));
+        let mut stmt = try_sql!(self.trans.prepare("SELECT info FROM clients WHERE name=? LIMIT 1"));
         let mut rows = try_sql!(stmt.query([name]));
         
         let maybe_row = try_sql!(rows.next());
