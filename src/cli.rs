@@ -93,6 +93,9 @@ pub struct SetInfoArgs {
     pub all: bool,
 
     #[arg(long)]
+    pub match_info: Option<String>,
+
+    #[arg(long)]
     pub name: Option<String>,
 
     #[arg(long)]

@@ -207,8 +207,9 @@ impl Database for SqliteDb<'_> {
 
     fn set_client_info(&mut self, target: Target, info: &str) -> Result<(), String> {
         let stmt = match target {
+            Target::All => self.trans.execute("UPDATE clients SET info=?", (info, )),
+            Target::MatchInfo(ref old_info) => self.trans.execute("UPDATE clients SET info=? WHERE info=?", (info, old_info)),
             Target::OnePerson(ref name) => self.trans.execute("UPDATE clients SET info=? WHERE name=?", (info, name)),
-            Target::All => self.trans.execute("UPDATE clients SET info=?", (info, ))
         };
 
         let rows_affected = try_sql!(stmt);

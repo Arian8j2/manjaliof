@@ -141,3 +141,35 @@ fn set_info() {
                                  "--info", "newinfo"]).assert().success();
     context.run_command().arg("list").assert().success().stdout("testcase 29d pouya(60) newinfo\n");
 }
+
+#[test]
+fn set_info_should_fail_when_arguments_conflicts() {
+    let context = TestContext::new();
+    let error = "Error: --match-info and --all and --name conflicts with each other\n";
+    context.run_command().args(&["set-info", "--all", "--name", "idk"])
+        .assert().failure().stderr(error);
+    context.run_command().args(&["set-info", "--name", "idk", "--match-info", "someinfo"])
+        .assert().failure().stderr(error);
+}
+
+#[test]
+fn set_info_match_info() {
+    let context = TestContext::new();
+    context.create_post_script("add", "#!/bin/bash");
+    context.run_command().args(&["add", "--name", "testcase1",
+                                 "--days", "30", "--seller", "pouya",
+                                 "--money", "55", "--info", "idk"]).assert().success();
+    context.run_command().args(&["add", "--name", "testcase2",
+                                 "--days", "26", "--seller", "arian",
+                                 "--money", "55", "--info", "nemidonam"]).assert().success();
+    context.run_command().args(&["add", "--name", "testcase3",
+                                 "--days", "29", "--seller", "arian",
+                                 "--money", "60", "--info", "idk"]).assert().success();
+    context.run_command().args(&["set-info", "--match-info", "idk",
+                                 "--info", "newidk"]).assert().success();
+    context.run_command().arg("list").assert().success().stdout(indoc! {"
+        testcase1 29d pouya(55) newidk   
+        testcase3 28d arian(60) newidk   
+        testcase2 25d arian(55) nemidonam
+    "});
+}

@@ -144,19 +144,22 @@ fn rename_client(db: &mut dyn Database, args: &RenameArgs) -> Result<PostScriptA
 }
 
 fn set_client_info(db: &mut dyn Database, args: &SetInfoArgs) -> Result<PostScriptArgs, String> {
-    if args.all && args.name.is_some() {
-        return Err("--name and --all conflicts".to_string());
+    if (args.all as i32) + (args.match_info.is_some() as i32) + (args.name.is_some() as i32) > 1 {
+        return Err("--match-info and --all and --name conflicts with each other".to_string());
     }
 
     let target: Target = if args.all {
         Target::All
+    } else if let Some(old_info) = &args.match_info {
+        Target::MatchInfo(old_info.clone())
     } else {
         Target::OnePerson(args.name.clone().unwrap_or_else(input::get_client_name))
     };
 
     let last_info = match &target {
+        Target::All => "".to_string(),
+        Target::MatchInfo(old_info) => old_info.clone(),
         Target::OnePerson(name) => db.get_client_info(&name)?,
-        Target::All => "".to_string()
     };
     let new_info = args.info.clone().unwrap_or_else(|| input::get_info(Some(&last_info)));
     db.set_client_info(target, &new_info)?;

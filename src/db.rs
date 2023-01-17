@@ -43,6 +43,7 @@ impl Client {
 
 pub enum Target {
     All,
+    MatchInfo(String),
     OnePerson(String)
 }
 
