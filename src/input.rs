@@ -18,6 +18,14 @@ pub fn get_seller() -> String {
     SELLERS.get(reffer_index).unwrap().to_string()
 }
 
+pub fn get_new_seller(old_seller: &str) -> String {
+    let old_seller = SELLERS.iter().position(|&x| x == old_seller).unwrap();
+    let reffer_index: usize = Select::with_theme(&get_theme()).with_prompt("who gets money")
+                                                              .default(old_seller)
+                                                              .items(&SELLERS).interact().unwrap();
+    SELLERS.get(reffer_index).unwrap().to_string()
+}
+
 pub fn get_money_amount() -> u32 {
     Input::with_theme(&get_theme()).with_prompt("money money")
                                    .default("60".into())
@@ -25,9 +33,23 @@ pub fn get_money_amount() -> u32 {
                                    .interact_text().unwrap().parse().unwrap()
 }
 
+pub fn get_new_money_amount(old_money_amount: u32) -> u32 {
+    Input::with_theme(&get_theme()).with_prompt("money money")
+                                   .with_initial_text(old_money_amount.to_string())
+                                   .validate_with(validators::NumberValidator {})
+                                   .interact_text().unwrap().parse().unwrap()
+}
+
 pub fn get_days() -> u32 {
     Input::with_theme(&get_theme()).with_prompt("how many days")
                                    .default("30".into())
+                                   .validate_with(validators::NumberValidator {})
+                                   .interact_text().unwrap().parse().unwrap()
+}
+
+pub fn get_new_days(old_days: u32) -> u32 {
+    Input::with_theme(&get_theme()).with_prompt("how many days")
+                                   .with_initial_text(old_days.to_string())
                                    .validate_with(validators::NumberValidator {})
                                    .interact_text().unwrap().parse().unwrap()
 }

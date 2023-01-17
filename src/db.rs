@@ -51,6 +51,7 @@ pub trait Database {
     fn add_client(&mut self, name: &str, days: u32, seller: &str, money: u32, info: &str) -> Result<(), String>;
     fn renew_client(&mut self, name: &str, days: u32, seller: &str, money: u32) -> Result<(), String>;
     fn renew_all_clients(&mut self, days: u32) -> Result<(), String>;
+    fn edit_client(&mut self, name: &str, days: u32, seller: &str, money: u32, info: &str) -> Result<(), String>;
     fn remove_client(&mut self, name: &str) -> Result<(), String>;
     fn list_clients(&self) -> Result<Vec<Client>, String>;
     fn rename_client(&mut self, old_name: &str, new_name: &str) -> Result<(), String>;

@@ -71,6 +71,23 @@ fn renew_all() {
 }
 
 #[test]
+fn edit() {
+    let context = TestContext::new();
+    context.create_post_script("add", "#!/bin/bash");
+    context.run_command().args(&["add", "--name", "testcase",
+                                 "--days", "30", "--seller", "pouya",
+                                 "--money", "55", "--info", "idk"]).assert().success();
+    context.create_post_script("renew", "#!/bin/bash");
+    context.run_command().args(&["renew", "--name", "testcase",
+                                 "--days", "30", "--seller", "pouya",
+                                 "--money", "60", "--info", "idk"]).assert().success();
+    context.run_command().args(&["edit", "--name", "testcase",
+                                 "--days", "20", "--seller", "arian",
+                                 "--money", "80", "--info", "edited"]).assert().success();
+    context.run_command().arg("list").assert().success().stdout("testcase 19d arian(80) edited\n");
+}
+
+#[test]
 fn remove() {
     let context = TestContext::new();
     context.create_post_script("add", "#!/bin/bash");

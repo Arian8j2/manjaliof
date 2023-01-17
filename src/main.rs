@@ -3,7 +3,8 @@ mod db;
 mod input;
 mod report;
 
-use cli::{Commands, Cli, AddArgs, RenewArgs, RemoveArgs, SetInfoArgs, RenameArgs, RenewAllArgs, ListArgs};
+use cli::{Commands, Cli, AddArgs, RenewArgs, RemoveArgs,
+          SetInfoArgs, RenameArgs, RenewAllArgs, ListArgs, EditArgs};
 use clap::Parser;
 use std::{env, process, process::ExitCode, path::Path};
 use db::{Database, sqlitedb::SqliteDb, Target};
@@ -49,6 +50,7 @@ fn try_run_command(cli: &Cli, db: &mut dyn Database) -> Result<(), String> {
         Commands::Add(args) => add_client(db, args)?,
         Commands::Renew(args) => renew_client(db, args)?,
         Commands::RenewAll(args) => renew_all_clients(db, args)?,
+        Commands::Edit(args) => edit_client(db, args)?,
         Commands::Remove(args) => remove_client(db, args)?,
         Commands::List(args) => list_clients(db, args)?,
         Commands::Rename(args) => rename_client(db, args)?,
@@ -104,6 +106,31 @@ fn renew_all_clients(db: &mut dyn Database, args: &RenewAllArgs) -> Result<PostS
     println!("{}", style("you are renewing all clients that are not expired!").yellow());
     let days = args.days.unwrap_or_else(input::get_days);
     db.renew_all_clients(days)?;
+    Ok(None)
+}
+
+fn edit_client(db: &mut dyn Database, args: &EditArgs) -> Result<PostScriptArgs, String> {
+    let name = args.name.clone().unwrap_or_else(input::get_client_name);
+    let client = db.list_clients()?.into_iter().find(|client| client.name == name)
+        .ok_or(format!("client with name '{name}' doesn't exists!"))?;
+
+    let now_time = Utc::now();
+    let days_remain = (client.expire_time - now_time).num_days();
+    if days_remain < 0 {
+        return Err("cannot edit an expired client".to_string());
+    }
+    let days = args.days.unwrap_or_else(|| input::get_new_days(days_remain.try_into().unwrap()));
+
+    let last_payment = client.payments.last().unwrap();
+    let seller = args.seller.clone().unwrap_or_else(|| input::get_new_seller(&last_payment.seller));
+    let money = args.money.unwrap_or_else(|| input::get_new_money_amount(last_payment.money));
+    input::validators::validate_seller(&seller)?;
+
+    let last_info = client.info.unwrap_or("".to_string());
+    let info = args.info.clone().unwrap_or_else(|| input::get_info(Some(&last_info)));
+    input::validators::validate_info(&info)?;
+
+    db.edit_client(&name, days, &seller, money, &info)?;
     Ok(None)
 }
 

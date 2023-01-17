@@ -21,6 +21,9 @@ pub enum Commands {
     #[command(about="renew all clients that are not expired")]
     RenewAll(RenewAllArgs),
 
+    #[command(about="edit client datas")]
+    Edit(EditArgs),
+
     #[command(about="remove client")]
     Remove(RemoveArgs),
 
@@ -65,6 +68,8 @@ pub struct RenewAllArgs {
     #[arg(long)]
     pub days: Option<u32>
 }
+
+pub type EditArgs = AddArgs;
 
 #[derive(Args, PartialEq)]
 pub struct RemoveArgs {

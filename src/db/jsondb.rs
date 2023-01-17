@@ -72,6 +72,10 @@ impl Database for JsonDb {
         Ok(())
     }
 
+    fn edit_client(&mut self, _name: &str, _days: u32, _seller: &str, _money: u32, _info: &str) -> Result<(), String> {
+        unimplemented!();
+    }
+
     fn remove_client(&mut self, name: &str) -> Result<(), String> {
         let mut clients: Vec<Client> = self.list_clients()?;
         let index: usize = match clients.iter().position(|client| { client.name == name }) {

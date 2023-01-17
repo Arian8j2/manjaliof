@@ -90,6 +90,20 @@ impl<'a> SqliteDb<'a> {
 
         Ok(datetime_from_str(&expire_date))
     }
+
+    fn get_last_payment_rowid(&self, client_name: &str) -> Result<u64, String> {
+        let mut stmt = try_sql!(self.trans.prepare("SELECT rowid FROM payments WHERE client_name=? ORDER BY rowid DESC LIMIT 1"));
+        let mut rows = try_sql!(stmt.query([client_name]));
+        let rowid = match try_sql!(rows.next()) {
+            Some(row) => {
+                let rowid: u64 = try_sql!(row.get(0));
+                Ok(rowid)
+            },
+            None => Err(format!("payment with client name '{}' doesn't exists!", client_name))
+        }?;
+
+        Ok(rowid)
+    }
 }
 
 impl Database for SqliteDb<'_> {
@@ -156,6 +170,24 @@ impl Database for SqliteDb<'_> {
         }
         Ok(())
     }
+
+    fn edit_client(&mut self, name: &str, days: u32, seller: &str, money: u32, info: &str) -> Result<(), String> {
+        let expire_date = datetime_to_str(&(Utc::now() + Duration::days(days.into())));
+        let rows_affected = try_sql!(self.trans.execute(
+            "UPDATE clients SET expire_date=?, info=? WHERE name=?",
+            (expire_date, info, name)
+        ));
+        assert!(rows_affected == 1);
+
+        
+        let last_payment_rowid = self.get_last_payment_rowid(name)?;
+        let rows_affected = try_sql!(self.trans.execute(
+            "UPDATE payments SET seller=?, money=? WHERE rowid=?",
+            (seller, money, last_payment_rowid)
+        ));
+        assert!(rows_affected == 1);
+        Ok(())
+    } 
 
     fn remove_client(&mut self, name: &str) -> Result<(), String> {
         let rows_affected = try_sql!(self.trans.execute("DELETE FROM clients WHERE name=?", (name, )));
