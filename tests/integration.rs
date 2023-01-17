@@ -1,6 +1,7 @@
 use assert_cmd::Command;
 use rand::prelude::*;
 use std::{fs, path::{Path, PathBuf}};
+use indoc::indoc;
 
 struct TestContext {
     data_path: PathBuf
@@ -58,6 +59,22 @@ fn should_reset_db_when_add_post_script_failed() {
 }
 
 #[test]
+fn list_with_trimmed_whitespace() {
+    let context = TestContext::new();
+    context.create_post_script("add", "#!/bin/bash");
+    context.run_command().args(&["add", "--name", "testcase",
+                                 "--days", "30", "--seller", "pouya",
+                                 "--money", "60", "--info", "idk"]).assert().success();
+    context.run_command().args(&["add", "--name", "testcasewithlongname",
+                                 "--days", "19", "--seller", "arian",
+                                 "--money", "50", "--info", "nemidonam"]).assert().success();
+    context.run_command().args(&["list", "--trim-whitespace"]).assert().success().stdout(indoc! {"
+        testcase 29d pouya(60) idk
+        testcasewithlongname 18d arian(50) nemidonam
+    "});
+}
+
+#[test]
 fn renew() {
     let context = TestContext::new();
     context.create_post_script("add", "#!/bin/bash");
@@ -82,8 +99,10 @@ fn renew_all() {
                                  "--days", "20", "--seller", "pouya",
                                  "--money", "60", "--info", "idk"]).assert().success();
     context.run_command().args(&["renew-all", "--days", "10"]).assert().success();
-    context.run_command().arg("list").assert().success().stdout(
-        "testcase2 39d arian(55) smth\ntestcase1 29d pouya(60) idk \n");
+    context.run_command().arg("list").assert().success().stdout(indoc! {"
+        testcase2 39d arian(55) smth
+        testcase1 29d pouya(60) idk 
+    "});
 }
 
 #[test]

@@ -23,11 +23,15 @@ impl Report {
         self.items.push(item);
     }
 
-    pub fn show(self) {
+    pub fn show(self, trim_whitespace: bool) {
         for item in self.items {
             let mut buffer: Vec<String> = Vec::new();
             for (index, column) in item.iter().enumerate() {
-                let column_text = format!("{:1$}", column, self.headers_max_len[index]);
+                let column_text = if trim_whitespace {
+                    format!("{column}")
+                } else {
+                    format!("{:1$}", column, self.headers_max_len[index])
+                };
                 buffer.push(column_text);
             }
 

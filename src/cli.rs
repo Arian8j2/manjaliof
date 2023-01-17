@@ -25,7 +25,7 @@ pub enum Commands {
     Remove(RemoveArgs),
 
     #[command(about="show all clients")]
-    List,
+    List(ListArgs),
 
     #[command(about="rename client")]
     Rename(RenameArgs),
@@ -70,6 +70,12 @@ pub struct RenewAllArgs {
 pub struct RemoveArgs {
     #[arg(long)]
     pub name: Option<String>
+}
+
+#[derive(Args, PartialEq)]
+pub struct ListArgs {
+    #[arg(long, default_value_t = false)]
+    pub trim_whitespace: bool
 }
 
 #[derive(Args, PartialEq)]

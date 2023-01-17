@@ -3,7 +3,7 @@ mod db;
 mod input;
 mod report;
 
-use cli::{Commands, Cli, AddArgs, RenewArgs, RemoveArgs, SetInfoArgs, RenameArgs, RenewAllArgs};
+use cli::{Commands, Cli, AddArgs, RenewArgs, RemoveArgs, SetInfoArgs, RenameArgs, RenewAllArgs, ListArgs};
 use clap::Parser;
 use std::{env, process, process::ExitCode, path::Path};
 use db::{Database, sqlitedb::SqliteDb, Target};
@@ -50,7 +50,7 @@ fn try_run_command(cli: &Cli, db: &mut dyn Database) -> Result<(), String> {
         Commands::Renew(args) => renew_client(db, args)?,
         Commands::RenewAll(args) => renew_all_clients(db, args)?,
         Commands::Remove(args) => remove_client(db, args)?,
-        Commands::List => list_clients(db)?,
+        Commands::List(args) => list_clients(db, args)?,
         Commands::Rename(args) => rename_client(db, args)?,
         Commands::SetInfo(args) => set_client_info(db, &args)?,
         Commands::Cleanup => cleanup(db)?,
@@ -114,7 +114,7 @@ fn remove_client(db: &mut dyn Database, args: &RemoveArgs) -> Result<PostScriptA
     Ok(Some(vec![name]))
 }
 
-fn list_clients(db: &dyn Database) -> Result<PostScriptArgs, String> {
+fn list_clients(db: &dyn Database, args: &ListArgs) -> Result<PostScriptArgs, String> {
     let mut clients = db.list_clients()?;
     clients.sort_by_key(|client| client.expire_time);
     clients.reverse();
@@ -129,7 +129,7 @@ fn list_clients(db: &dyn Database) -> Result<PostScriptArgs, String> {
         report.add_item([name, months_left, sellers, info].to_vec());
     }
 
-    report.show();
+    report.show(args.trim_whitespace);
     Ok(None)
 }
 

@@ -18,3 +18,4 @@ vergen = { version = "7.5.0", default-features = false, features = ["git"] }
 [dev-dependencies]
 rand = "0.8.5"
 assert_cmd = "2.0.8"
+indoc = "1.0"
