@@ -44,7 +44,7 @@ fn try_main() -> Result<(), String> {
     command_result
 }
 
-fn try_run_command(cli: &Cli, db: &mut dyn Database) -> Result<(), String> {
+fn try_run_command<T: Database>(cli: &Cli, db: &mut T) -> Result<(), String> {
     let post_script_name = get_command_post_script(&cli.command, cli.skip_post_script);
     let post_script_arg = match &cli.command {
         Commands::Add(args) => add_client(db, args)?,
@@ -66,7 +66,7 @@ fn try_run_command(cli: &Cli, db: &mut dyn Database) -> Result<(), String> {
     Ok(())
 }
 
-fn add_client(db: &mut dyn Database, args: &AddArgs) -> Result<PostScriptArgs, String> {
+fn add_client<T: Database>(db: &mut T, args: &AddArgs) -> Result<PostScriptArgs, String> {
     let name = args.name.clone().unwrap_or_else(input::get_client_name);
     let days = args.days.unwrap_or_else(input::get_days);
     let seller = args.seller.clone().unwrap_or_else(input::get_seller);
@@ -81,7 +81,7 @@ fn add_client(db: &mut dyn Database, args: &AddArgs) -> Result<PostScriptArgs, S
     Ok(Some(vec![name]))
 }
 
-fn renew_client(db: &mut dyn Database, args: &RenewArgs) -> Result<PostScriptArgs, String> {
+fn renew_client<T: Database>(db: &mut T, args: &RenewArgs) -> Result<PostScriptArgs, String> {
     let name = args.name.clone().unwrap_or_else(input::get_client_name);
     let days = args.days.unwrap_or_else(input::get_days);
     let seller = args.seller.clone().unwrap_or_else(input::get_seller);
@@ -102,14 +102,14 @@ fn renew_client(db: &mut dyn Database, args: &RenewArgs) -> Result<PostScriptArg
     Ok(Some(vec![name]))
 }
 
-fn renew_all_clients(db: &mut dyn Database, args: &RenewAllArgs) -> Result<PostScriptArgs, String> {
+fn renew_all_clients<T: Database>(db: &mut T, args: &RenewAllArgs) -> Result<PostScriptArgs, String> {
     println!("{}", style("you are renewing all clients that are not expired!").yellow());
     let days = args.days.unwrap_or_else(input::get_days);
     db.renew_all_clients(days)?;
     Ok(None)
 }
 
-fn edit_client(db: &mut dyn Database, args: &EditArgs) -> Result<PostScriptArgs, String> {
+fn edit_client<T: Database>(db: &mut T, args: &EditArgs) -> Result<PostScriptArgs, String> {
     let name = args.name.clone().unwrap_or_else(input::get_client_name);
     let client = db.list_clients()?.into_iter().find(|client| client.name == name)
         .ok_or(format!("client with name '{name}' doesn't exists!"))?;
@@ -134,14 +134,14 @@ fn edit_client(db: &mut dyn Database, args: &EditArgs) -> Result<PostScriptArgs,
     Ok(None)
 }
 
-fn remove_client(db: &mut dyn Database, args: &RemoveArgs) -> Result<PostScriptArgs, String> {
+fn remove_client<T: Database>(db: &mut T, args: &RemoveArgs) -> Result<PostScriptArgs, String> {
     let name = args.name.clone().unwrap_or_else(input::get_client_name);
     input::validators::validate_name(&name)?;
     db.remove_client(&name)?;
     Ok(Some(vec![name]))
 }
 
-fn list_clients(db: &dyn Database, args: &ListArgs) -> Result<PostScriptArgs, String> {
+fn list_clients<T: Database>(db: &mut T, args: &ListArgs) -> Result<PostScriptArgs, String> {
     let mut clients = db.list_clients()?;
     clients.sort_by_key(|client| client.expire_time);
     clients.reverse();
@@ -160,7 +160,7 @@ fn list_clients(db: &dyn Database, args: &ListArgs) -> Result<PostScriptArgs, St
     Ok(None)
 }
 
-fn rename_client(db: &mut dyn Database, args: &RenameArgs) -> Result<PostScriptArgs, String> {
+fn rename_client<T: Database>(db: &mut T, args: &RenameArgs) -> Result<PostScriptArgs, String> {
     let old_name = args.old_name.clone().unwrap_or_else(input::get_client_name);
     let new_name = args.new_name.clone().unwrap_or_else(input::get_client_new_name);
 
@@ -170,7 +170,7 @@ fn rename_client(db: &mut dyn Database, args: &RenameArgs) -> Result<PostScriptA
     Ok(Some(vec![old_name, new_name]))
 }
 
-fn set_client_info(db: &mut dyn Database, args: &SetInfoArgs) -> Result<PostScriptArgs, String> {
+fn set_client_info<T: Database>(db: &mut T, args: &SetInfoArgs) -> Result<PostScriptArgs, String> {
     if (args.all as i32) + (args.match_info.is_some() as i32) + (args.name.is_some() as i32) > 1 {
         return Err("--match-info and --all and --name conflicts with each other".to_string());
     }
@@ -194,7 +194,7 @@ fn set_client_info(db: &mut dyn Database, args: &SetInfoArgs) -> Result<PostScri
     Ok(None)
 }
 
-fn cleanup(db: &mut dyn Database) -> Result<PostScriptArgs, String> {
+fn cleanup<T: Database>(db: &mut T) -> Result<PostScriptArgs, String> {
     let now_time = Utc::now();
 
     let clients = db.list_clients()?;
