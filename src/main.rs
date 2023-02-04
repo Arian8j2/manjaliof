@@ -149,11 +149,11 @@ fn list_clients<T: Database>(db: &mut T, args: &ListArgs) -> Result<PostScriptAr
     let mut report = Report::new(["name", "months left", "seller", "info"].to_vec());
     for client in clients {
         let name = style(client.name).cyan().to_string();
-        let months_left = client_report::calculate_days_left(client.expire_time);
+        let days_left = client_report::calculate_days_left(args.verbose, client.expire_time);
         let sellers = client_report::calculate_sellers(&client.payments);
         let info = style(client.info.unwrap_or("".to_string())).black().bright().to_string();
 
-        report.add_item([name, months_left, sellers, info].to_vec());
+        report.add_item([name, days_left, sellers, info].to_vec());
     }
 
     report.show(args.trim_whitespace);

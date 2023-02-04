@@ -2,10 +2,17 @@ use chrono::{DateTime, Utc};
 use dialoguer::console::style;
 use crate::db::Payment;
 
-pub fn calculate_days_left(expire_time: DateTime<Utc>) -> String {
+pub fn calculate_days_left(verbose: bool, expire_time: DateTime<Utc>) -> String {
     let now_date = Utc::now();
     if expire_time < now_date {
-        return style("expired").red().to_string();
+        let expired_string = if verbose {
+            let days_passed_expire_date = (now_date - expire_time).num_days();
+            format!("expired({days_passed_expire_date})")
+        } else {
+            "expired".to_string()
+        };
+
+        return style(expired_string).red().to_string();
     }
 
     let delta = expire_time - now_date;

@@ -80,7 +80,10 @@ pub struct RemoveArgs {
 #[derive(Args, PartialEq)]
 pub struct ListArgs {
     #[arg(long, default_value_t = false)]
-    pub trim_whitespace: bool
+    pub trim_whitespace: bool,
+
+    #[arg(short, long, default_value_t = false)]
+    pub verbose: bool
 }
 
 #[derive(Args, PartialEq)]
