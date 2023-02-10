@@ -3,14 +3,16 @@ mod db;
 mod input;
 mod report;
 
-use cli::{Commands, Cli, AddArgs, RenewArgs, RemoveArgs,
-          SetInfoArgs, RenameArgs, RenewAllArgs, ListArgs, EditArgs};
-use clap::Parser;
-use std::{env, process, process::ExitCode, path::Path};
-use db::{Database, sqlitedb::SqliteDb, Target};
-use dialoguer::console::style;
-use report::{Report, client_report};
 use chrono::Utc;
+use clap::Parser;
+use cli::{
+    AddArgs, Cli, Commands, EditArgs, ListArgs, RemoveArgs, RenameArgs, RenewAllArgs, RenewArgs,
+    SetInfoArgs,
+};
+use db::{sqlitedb::SqliteDb, Database, Target};
+use dialoguer::console::style;
+use report::{client_report, Report};
+use std::{env, path::Path, process, process::ExitCode};
 
 type PostScriptArgs = Option<Vec<String>>;
 
@@ -38,7 +40,8 @@ fn try_main() -> Result<(), String> {
 
     let command_result = try_run_command(&cli, &mut db);
     if !command_result.is_err() {
-        db.commit().map_err(|e| format!("CRITICAL ERROR: cannot commit changes: {e}"))?;
+        db.commit()
+            .map_err(|e| format!("CRITICAL ERROR: cannot commit changes: {e}"))?;
     }
 
     command_result
@@ -56,13 +59,13 @@ fn try_run_command<T: Database>(cli: &Cli, db: &mut T) -> Result<(), String> {
         Commands::Rename(args) => rename_client(db, args)?,
         Commands::SetInfo(args) => set_client_info(db, &args)?,
         Commands::Cleanup => cleanup(db)?,
-        Commands::Version => version()
+        Commands::Version => version(),
     };
 
-    if let (Some(name), Some(args)) = (post_script_name, post_script_arg){
+    if let (Some(name), Some(args)) = (post_script_name, post_script_arg) {
         run_post_script(name, args)?;
     }
-    
+
     Ok(())
 }
 
@@ -102,8 +105,14 @@ fn renew_client<T: Database>(db: &mut T, args: &RenewArgs) -> Result<PostScriptA
     Ok(Some(vec![name]))
 }
 
-fn renew_all_clients<T: Database>(db: &mut T, args: &RenewAllArgs) -> Result<PostScriptArgs, String> {
-    println!("{}", style("you are renewing all clients that are not expired!").yellow());
+fn renew_all_clients<T: Database>(
+    db: &mut T,
+    args: &RenewAllArgs,
+) -> Result<PostScriptArgs, String> {
+    println!(
+        "{}",
+        style("you are renewing all clients that are not expired!").yellow()
+    );
     let days = args.days.unwrap_or_else(input::get_days);
     db.renew_all_clients(days)?;
     Ok(None)
@@ -111,7 +120,10 @@ fn renew_all_clients<T: Database>(db: &mut T, args: &RenewAllArgs) -> Result<Pos
 
 fn edit_client<T: Database>(db: &mut T, args: &EditArgs) -> Result<PostScriptArgs, String> {
     let name = args.name.clone().unwrap_or_else(input::get_client_name);
-    let client = db.list_clients()?.into_iter().find(|client| client.name == name)
+    let client = db
+        .list_clients()?
+        .into_iter()
+        .find(|client| client.name == name)
         .ok_or(format!("client with name '{name}' doesn't exists!"))?;
 
     let now_time = Utc::now();
@@ -119,15 +131,25 @@ fn edit_client<T: Database>(db: &mut T, args: &EditArgs) -> Result<PostScriptArg
     if days_remain < 0 {
         return Err("cannot edit an expired client".to_string());
     }
-    let days = args.days.unwrap_or_else(|| input::get_new_days(days_remain.try_into().unwrap()));
+    let days = args
+        .days
+        .unwrap_or_else(|| input::get_new_days(days_remain.try_into().unwrap()));
 
     let last_payment = client.payments.last().unwrap();
-    let seller = args.seller.clone().unwrap_or_else(|| input::get_new_seller(&last_payment.seller));
-    let money = args.money.unwrap_or_else(|| input::get_new_money_amount(last_payment.money));
+    let seller = args
+        .seller
+        .clone()
+        .unwrap_or_else(|| input::get_new_seller(&last_payment.seller));
+    let money = args
+        .money
+        .unwrap_or_else(|| input::get_new_money_amount(last_payment.money));
     input::validators::validate_seller(&seller)?;
 
     let last_info = client.info.unwrap_or("".to_string());
-    let info = args.info.clone().unwrap_or_else(|| input::get_info(Some(&last_info)));
+    let info = args
+        .info
+        .clone()
+        .unwrap_or_else(|| input::get_info(Some(&last_info)));
     input::validators::validate_info(&info)?;
 
     db.edit_client(&name, days, &seller, money, &info)?;
@@ -151,7 +173,10 @@ fn list_clients<T: Database>(db: &mut T, args: &ListArgs) -> Result<PostScriptAr
         let name = style(client.name).cyan().to_string();
         let days_left = client_report::calculate_days_left(args.verbose, client.expire_time);
         let sellers = client_report::calculate_sellers(&client.payments);
-        let info = style(client.info.unwrap_or("".to_string())).black().bright().to_string();
+        let info = style(client.info.unwrap_or("".to_string()))
+            .black()
+            .bright()
+            .to_string();
 
         report.add_item([name, days_left, sellers, info].to_vec());
     }
@@ -162,7 +187,10 @@ fn list_clients<T: Database>(db: &mut T, args: &ListArgs) -> Result<PostScriptAr
 
 fn rename_client<T: Database>(db: &mut T, args: &RenameArgs) -> Result<PostScriptArgs, String> {
     let old_name = args.old_name.clone().unwrap_or_else(input::get_client_name);
-    let new_name = args.new_name.clone().unwrap_or_else(input::get_client_new_name);
+    let new_name = args
+        .new_name
+        .clone()
+        .unwrap_or_else(input::get_client_new_name);
 
     input::validators::validate_name(&new_name)?;
 
@@ -188,7 +216,10 @@ fn set_client_info<T: Database>(db: &mut T, args: &SetInfoArgs) -> Result<PostSc
         Target::MatchInfo(old_info) => old_info.clone(),
         Target::OnePerson(name) => db.get_client_info(&name)?,
     };
-    let new_info = args.info.clone().unwrap_or_else(|| input::get_info(Some(&last_info)));
+    let new_info = args
+        .info
+        .clone()
+        .unwrap_or_else(|| input::get_info(Some(&last_info)));
     db.set_client_info(target, &new_info)?;
 
     Ok(None)
@@ -213,7 +244,7 @@ fn cleanup<T: Database>(db: &mut T) -> Result<PostScriptArgs, String> {
 fn get_command_post_script(command: &Commands, skip: bool) -> Option<&'static str> {
     if skip {
         println!("{}", style("skipping post script!").yellow());
-        return None
+        return None;
     }
 
     match &command {
@@ -221,27 +252,44 @@ fn get_command_post_script(command: &Commands, skip: bool) -> Option<&'static st
         Commands::Renew(_) => Some("renew"),
         Commands::Remove(_) => Some("delete"),
         Commands::Rename(_) => Some("rename"),
-        _ => None
+        _ => None,
     }
 }
 
 fn run_post_script(script_name: &str, args: Vec<String>) -> Result<(), String> {
-    let script_path = Path::new(&get_data_path()?).join(POST_SCRIPTS_FOLDER_NAME).join(script_name);
-    let output = process::Command::new(&script_path).args(args).output().map_err(
-        |error| format!("couldn't run post script '{}': {}", script_path.to_str().unwrap(), error.to_string()))?;
+    let script_path = Path::new(&get_data_path()?)
+        .join(POST_SCRIPTS_FOLDER_NAME)
+        .join(script_name);
+    let output = process::Command::new(&script_path)
+        .args(args)
+        .output()
+        .map_err(|error| {
+            format!(
+                "couldn't run post script '{}': {}",
+                script_path.to_str().unwrap(),
+                error.to_string()
+            )
+        })?;
 
     if !output.status.success() {
-        let mut output_stderr = std::str::from_utf8(output.stderr.as_slice()).unwrap().to_string();
+        let mut output_stderr = std::str::from_utf8(output.stderr.as_slice())
+            .unwrap()
+            .to_string();
         if let Some(last_char) = output_stderr.chars().last() {
             if last_char == '\n' {
                 output_stderr.pop();
             }
         }
 
-        return Err(format!("post script exited due to a failure: {}", output_stderr));
+        return Err(format!(
+            "post script exited due to a failure: {}",
+            output_stderr
+        ));
     }
 
-    let result = std::str::from_utf8(output.stdout.as_slice()).unwrap().to_string();
+    let result = std::str::from_utf8(output.stdout.as_slice())
+        .unwrap()
+        .to_string();
     if !result.is_empty() {
         println!("{}", result);
     }
@@ -250,11 +298,16 @@ fn run_post_script(script_name: &str, args: Vec<String>) -> Result<(), String> {
 
 fn get_data_path() -> Result<String, String> {
     let env_name = DATA_PATH_ENV_NAME;
-    env::var(env_name).map_err(|_error|
-        format!("please set '{env_name}' environment variable to point to manjaliof data folder"))
+    env::var(env_name).map_err(|_error| {
+        format!("please set '{env_name}' environment variable to point to manjaliof data folder")
+    })
 }
 
 fn version() -> PostScriptArgs {
-    println!("{}\n{}", style(env!("VERGEN_GIT_SHA")).green(), env!("VERGEN_GIT_COMMIT_MESSAGE"));
+    println!(
+        "{}\n{}",
+        style(env!("VERGEN_GIT_SHA")).green(),
+        env!("VERGEN_GIT_COMMIT_MESSAGE")
+    );
     None
 }

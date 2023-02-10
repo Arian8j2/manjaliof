@@ -1,32 +1,44 @@
-use std::{fs, path::PathBuf};
+use crate::db::{Client, Database, Payment, Target};
 use chrono::{Duration, Utc};
-use crate::db::{Database, Client, Payment, Target};
+use std::{fs, path::PathBuf};
 
 pub struct JsonDb {
     file_path: PathBuf,
-    clients: Option<Vec<Client>>
+    clients: Option<Vec<Client>>,
 }
 
 impl JsonDb {
     #[allow(dead_code)]
     pub fn new(file_path: PathBuf) -> Result<JsonDb, String> {
         if !file_path.is_file() {
-            fs::write(&file_path, "[]").map_err(|e| format!("cannot create database file at '{}': {}",
-                file_path.to_str().unwrap(), e.to_string()))?;
+            fs::write(&file_path, "[]").map_err(|e| {
+                format!(
+                    "cannot create database file at '{}': {}",
+                    file_path.to_str().unwrap(),
+                    e.to_string()
+                )
+            })?;
         }
 
         Ok(JsonDb {
             file_path,
-            clients: None
+            clients: None,
         })
     }
 }
 
 impl Database for JsonDb {
-    fn add_client(&mut self, name: &str, days: u32, seller: &str, money: u32, info: &str) -> Result<(), String> {
+    fn add_client(
+        &mut self,
+        name: &str,
+        days: u32,
+        seller: &str,
+        money: u32,
+        info: &str,
+    ) -> Result<(), String> {
         let mut clients: Vec<Client> = self.list_clients()?;
-        if clients.iter().any(|exist_client| { exist_client.name == name }) {
-            return Err(format!("client '{}' already exists!", name))
+        if clients.iter().any(|exist_client| exist_client.name == name) {
+            return Err(format!("client '{}' already exists!", name));
         }
 
         let client = Client::new(name, days, &seller, money, info);
@@ -35,11 +47,17 @@ impl Database for JsonDb {
         Ok(())
     }
 
-    fn renew_client(&mut self, name: &str, days: u32, seller: &str, money: u32) -> Result<(), String> {
+    fn renew_client(
+        &mut self,
+        name: &str,
+        days: u32,
+        seller: &str,
+        money: u32,
+    ) -> Result<(), String> {
         let mut clients: Vec<Client> = self.list_clients()?;
-        let index = match clients.iter().position(|client| { client.name == name }) {
+        let index = match clients.iter().position(|client| client.name == name) {
             Some(index) => index,
-            None => return Err(format!("client with name '{}' doesn't exists!", name))
+            None => return Err(format!("client with name '{}' doesn't exists!", name)),
         };
 
         let mut client = &mut clients[index];
@@ -50,7 +68,11 @@ impl Database for JsonDb {
         }
 
         client.expire_time += Duration::days(days.into());
-        client.payments.push(Payment { seller: seller.to_string(), money, date: now_date });
+        client.payments.push(Payment {
+            seller: seller.to_string(),
+            money,
+            date: now_date,
+        });
         self.clients = Some(clients);
         Ok(())
     }
@@ -60,7 +82,7 @@ impl Database for JsonDb {
         let now_date = Utc::now();
 
         for client in clients.iter_mut() {
-            let is_expired = client.expire_time < now_date; 
+            let is_expired = client.expire_time < now_date;
             if is_expired {
                 continue;
             }
@@ -72,15 +94,22 @@ impl Database for JsonDb {
         Ok(())
     }
 
-    fn edit_client(&mut self, _name: &str, _days: u32, _seller: &str, _money: u32, _info: &str) -> Result<(), String> {
+    fn edit_client(
+        &mut self,
+        _name: &str,
+        _days: u32,
+        _seller: &str,
+        _money: u32,
+        _info: &str,
+    ) -> Result<(), String> {
         unimplemented!();
     }
 
     fn remove_client(&mut self, name: &str) -> Result<(), String> {
         let mut clients: Vec<Client> = self.list_clients()?;
-        let index: usize = match clients.iter().position(|client| { client.name == name }) {
+        let index: usize = match clients.iter().position(|client| client.name == name) {
             Some(index) => index,
-            None => return Err(format!("client with name '{}' doesn't exists!", name))
+            None => return Err(format!("client with name '{}' doesn't exists!", name)),
         };
 
         clients.remove(index);
@@ -93,14 +122,22 @@ impl Database for JsonDb {
             return Ok(clients.clone());
         }
 
-        let file = fs::File::open(&self.file_path).map_err(
-            |error| format!("cannot open file '{}': {}", self.file_path.to_str().unwrap(), error.to_string()))?;
-        serde_json::from_reader(file).map_err(|error| format!("cannot parse json: {}", error.to_string()))
+        let file = fs::File::open(&self.file_path).map_err(|error| {
+            format!(
+                "cannot open file '{}': {}",
+                self.file_path.to_str().unwrap(),
+                error.to_string()
+            )
+        })?;
+        serde_json::from_reader(file)
+            .map_err(|error| format!("cannot parse json: {}", error.to_string()))
     }
 
     fn rename_client(&mut self, old_name: &str, new_name: &str) -> Result<(), String> {
         let mut clients: Vec<Client> = self.list_clients()?;
-        let mut client = clients.iter_mut().find(|client| client.name == old_name)
+        let mut client = clients
+            .iter_mut()
+            .find(|client| client.name == old_name)
             .ok_or(format!("client with name '{}' doesn't exists!", old_name))?;
         client.name = new_name.to_string();
 
@@ -138,8 +175,13 @@ impl Database for JsonDb {
     fn commit(self) -> Result<(), String> {
         if let Some(clients) = self.clients {
             let json_string = serde_json::to_string_pretty(&clients).unwrap();
-            fs::write(&self.file_path, json_string.as_bytes()).map_err(
-                |error| format!("cannot write to file '{}': {}", self.file_path.to_str().unwrap(), error.to_string()))?;
+            fs::write(&self.file_path, json_string.as_bytes()).map_err(|error| {
+                format!(
+                    "cannot write to file '{}': {}",
+                    self.file_path.to_str().unwrap(),
+                    error.to_string()
+                )
+            })?;
         }
 
         Ok(())

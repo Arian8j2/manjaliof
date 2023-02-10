@@ -1,9 +1,12 @@
 use assert_cmd::Command;
 use rand::prelude::*;
-use std::{fs, path::{Path, PathBuf}};
+use std::{
+    fs,
+    path::{Path, PathBuf},
+};
 
 pub struct TestContext {
-    data_path: PathBuf
+    data_path: PathBuf,
 }
 
 impl TestContext {
@@ -15,13 +18,17 @@ impl TestContext {
         fs::create_dir(&data_path).unwrap();
         fs::create_dir(data_path.join("post_scripts")).unwrap();
 
-        TestContext { data_path: data_path.to_path_buf() }
+        TestContext {
+            data_path: data_path.to_path_buf(),
+        }
     }
 
     pub fn create_post_script(&self, post_script_name: &str, content: &str) {
         let script_path = &self.data_path.join("post_scripts").join(post_script_name);
         fs::write(script_path, content).unwrap();
-        Command::new("chmod").args(&["+x", script_path.to_str().unwrap()]).unwrap();
+        Command::new("chmod")
+            .args(&["+x", script_path.to_str().unwrap()])
+            .unwrap();
     }
 
     pub fn run_command(&self) -> Command {
@@ -36,4 +43,3 @@ impl Drop for TestContext {
         fs::remove_dir_all(&self.data_path).unwrap();
     }
 }
-

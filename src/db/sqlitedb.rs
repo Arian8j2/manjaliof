@@ -1,10 +1,10 @@
-use std::{collections::HashMap, path::PathBuf};
-use chrono::{Utc, Duration, DateTime};
 use crate::db::{
-    Database, Client, Payment, Target,
-    datetime_serializer::{datetime_to_str, datetime_from_str}
+    datetime_serializer::{datetime_from_str, datetime_to_str},
+    Client, Database, Payment, Target,
 };
+use chrono::{DateTime, Duration, Utc};
 use rusqlite::{Connection, Transaction};
+use std::{collections::HashMap, path::PathBuf};
 
 macro_rules! try_sql {
     ($expr:expr) => {
@@ -13,12 +13,12 @@ macro_rules! try_sql {
             Err(error) => {
                 return Err(format!("sql error: {}", error.to_string()));
             }
-        } 
+        }
     };
 }
 
 pub struct SqliteDb<'a> {
-    trans: Transaction<'a>
+    trans: Transaction<'a>,
 }
 
 impl<'a> SqliteDb<'a> {
@@ -32,23 +32,29 @@ impl<'a> SqliteDb<'a> {
                 name TEXT PRIMARY KEY,
                 expire_date TEXT NOT NULL,
                 info TEXT
-            )", ()
-        ).map_err(|e| format!("cannot create clients table: {}", e.to_string()))?;
+            )",
+            (),
+        )
+        .map_err(|e| format!("cannot create clients table: {}", e.to_string()))?;
         conn.execute(
             "CREATE TABLE IF NOT EXISTS payments (
                 client_name TEXT NOT NULL,
                 seller TEXT NOT NULL,
                 date TEXT NOT NULL,
                 money UNSIGNED INTEGER NOT NULL
-            )", ()
-        ).map_err(|e| format!("cannot create payments table: {}", e.to_string()))?;
-        Ok(SqliteDb { trans: conn.transaction().map_err(|e| e.to_string())? })
+            )",
+            (),
+        )
+        .map_err(|e| format!("cannot create payments table: {}", e.to_string()))?;
+        Ok(SqliteDb {
+            trans: conn.transaction().map_err(|e| e.to_string())?,
+        })
     }
 
     fn get_payments(&self) -> Result<HashMap<String, Vec<Payment>>, String> {
-        let mut stmt = try_sql!(self.trans.prepare(
-            "SELECT client_name, seller, date, money FROM payments",
-        ));
+        let mut stmt = try_sql!(self
+            .trans
+            .prepare("SELECT client_name, seller, date, money FROM payments",));
         let mut rows = try_sql!(stmt.query([]));
 
         let mut payments: HashMap<String, Vec<Payment>> = HashMap::new();
@@ -59,17 +65,25 @@ impl<'a> SqliteDb<'a> {
             let payment = Payment {
                 seller: try_sql!(row.get(1)),
                 date: datetime_from_str(&date),
-                money: try_sql!(row.get(3))
+                money: try_sql!(row.get(3)),
             };
 
-            payments.entry(client_name).and_modify(|v| v.push(payment.clone()))
+            payments
+                .entry(client_name)
+                .and_modify(|v| v.push(payment.clone()))
                 .or_insert(vec![payment]);
         }
-        
+
         Ok(payments)
     }
 
-    fn add_payment(&mut self, client_name: &str, seller: &str, date: &str, money: u32) -> Result<(), String> {
+    fn add_payment(
+        &mut self,
+        client_name: &str,
+        seller: &str,
+        date: &str,
+        money: u32,
+    ) -> Result<(), String> {
         try_sql!(self.trans.execute(
             "INSERT INTO payments (client_name, seller, date, money) VALUES (?, ?, ?, ?)",
             (client_name, seller, date, money)
@@ -78,28 +92,38 @@ impl<'a> SqliteDb<'a> {
     }
 
     fn get_client_expire_date(&self, client_name: &str) -> Result<DateTime<Utc>, String> {
-        let mut stmt = try_sql!(self.trans.prepare("SELECT expire_date FROM clients WHERE name=? LIMIT 1"));
+        let mut stmt = try_sql!(self
+            .trans
+            .prepare("SELECT expire_date FROM clients WHERE name=? LIMIT 1"));
         let mut rows = try_sql!(stmt.query([client_name]));
         let expire_date = match try_sql!(rows.next()) {
             Some(row) => {
                 let expire_date: String = try_sql!(row.get(0));
                 Ok(expire_date)
-            },
-            None => Err(format!("client with name '{}' doesn't exists!", client_name))
+            }
+            None => Err(format!(
+                "client with name '{}' doesn't exists!",
+                client_name
+            )),
         }?;
 
         Ok(datetime_from_str(&expire_date))
     }
 
     fn get_last_payment_rowid(&self, client_name: &str) -> Result<u64, String> {
-        let mut stmt = try_sql!(self.trans.prepare("SELECT rowid FROM payments WHERE client_name=? ORDER BY rowid DESC LIMIT 1"));
+        let mut stmt = try_sql!(self
+            .trans
+            .prepare("SELECT rowid FROM payments WHERE client_name=? ORDER BY rowid DESC LIMIT 1"));
         let mut rows = try_sql!(stmt.query([client_name]));
         let rowid = match try_sql!(rows.next()) {
             Some(row) => {
                 let rowid: u64 = try_sql!(row.get(0));
                 Ok(rowid)
-            },
-            None => Err(format!("payment with client name '{}' doesn't exists!", client_name))
+            }
+            None => Err(format!(
+                "payment with client name '{}' doesn't exists!",
+                client_name
+            )),
         }?;
 
         Ok(rowid)
@@ -107,7 +131,14 @@ impl<'a> SqliteDb<'a> {
 }
 
 impl Database for SqliteDb<'_> {
-    fn add_client(&mut self, name: &str, days: u32, seller: &str, money: u32, info: &str) -> Result<(), String> {
+    fn add_client(
+        &mut self,
+        name: &str,
+        days: u32,
+        seller: &str,
+        money: u32,
+        info: &str,
+    ) -> Result<(), String> {
         let new_client = Client::new(name, days, &seller, money, info);
         let expire_date = datetime_to_str(&new_client.expire_time);
         let payment_date = datetime_to_str(&new_client.payments.get(0).unwrap().date);
@@ -118,14 +149,20 @@ impl Database for SqliteDb<'_> {
         ));
 
         if rows_affected == 0 {
-            return Err(format!("client '{}' already exists!", name))
+            return Err(format!("client '{}' already exists!", name));
         }
 
         self.add_payment(name, seller, &payment_date, money)?;
         Ok(())
     }
 
-    fn renew_client(&mut self, name: &str, days: u32, seller: &str, money: u32) -> Result<(), String> {
+    fn renew_client(
+        &mut self,
+        name: &str,
+        days: u32,
+        seller: &str,
+        money: u32,
+    ) -> Result<(), String> {
         let mut expire_date = self.get_client_expire_date(name)?;
         let now_date = Utc::now();
         if now_date > expire_date {
@@ -133,12 +170,10 @@ impl Database for SqliteDb<'_> {
         }
         expire_date += Duration::days(days.into());
 
-        let rows_affected = try_sql!(
-            self.trans.execute(
-                "UPDATE clients SET expire_date=? WHERE name=?",
-                (datetime_to_str(&expire_date), name)
-            )
-        );
+        let rows_affected = try_sql!(self.trans.execute(
+            "UPDATE clients SET expire_date=? WHERE name=?",
+            (datetime_to_str(&expire_date), name)
+        ));
         assert!(rows_affected > 0);
         self.add_payment(name, seller, &datetime_to_str(&now_date), money)?;
         Ok(())
@@ -160,18 +195,23 @@ impl Database for SqliteDb<'_> {
             }
             expire_date += Duration::days(days.into());
 
-            let rows_affected = try_sql!(
-                self.trans.execute(
-                    "UPDATE clients SET expire_date=? WHERE name=?",
-                    (datetime_to_str(&expire_date), name)
-                )
-            );
+            let rows_affected = try_sql!(self.trans.execute(
+                "UPDATE clients SET expire_date=? WHERE name=?",
+                (datetime_to_str(&expire_date), name)
+            ));
             assert!(rows_affected > 0);
         }
         Ok(())
     }
 
-    fn edit_client(&mut self, name: &str, days: u32, seller: &str, money: u32, info: &str) -> Result<(), String> {
+    fn edit_client(
+        &mut self,
+        name: &str,
+        days: u32,
+        seller: &str,
+        money: u32,
+        info: &str,
+    ) -> Result<(), String> {
         let expire_date = datetime_to_str(&(Utc::now() + Duration::days(days.into())));
         let rows_affected = try_sql!(self.trans.execute(
             "UPDATE clients SET expire_date=?, info=? WHERE name=?",
@@ -179,7 +219,6 @@ impl Database for SqliteDb<'_> {
         ));
         assert!(rows_affected == 1);
 
-        
         let last_payment_rowid = self.get_last_payment_rowid(name)?;
         let rows_affected = try_sql!(self.trans.execute(
             "UPDATE payments SET seller=?, money=? WHERE rowid=?",
@@ -187,22 +226,31 @@ impl Database for SqliteDb<'_> {
         ));
         assert!(rows_affected == 1);
         Ok(())
-    } 
+    }
 
     fn remove_client(&mut self, name: &str) -> Result<(), String> {
-        let rows_affected = try_sql!(self.trans.execute("DELETE FROM clients WHERE name=?", (name, )));
+        let rows_affected = try_sql!(self
+            .trans
+            .execute("DELETE FROM clients WHERE name=?", (name,)));
         if rows_affected == 0 {
-            return Err(format!("client with name '{}' doesn't exists!", name))
+            return Err(format!("client with name '{}' doesn't exists!", name));
         }
 
-        assert!(try_sql!(self.trans.execute("DELETE FROM payments WHERE client_name=?", (name, ))) > 0);
+        assert!(
+            try_sql!(self
+                .trans
+                .execute("DELETE FROM payments WHERE client_name=?", (name,)))
+                > 0
+        );
         Ok(())
     }
 
     fn list_clients(&self) -> Result<Vec<Client>, String> {
         let mut payments = self.get_payments()?;
 
-        let mut stmt = try_sql!(self.trans.prepare("SELECT name, expire_date, info FROM clients"));
+        let mut stmt = try_sql!(self
+            .trans
+            .prepare("SELECT name, expire_date, info FROM clients"));
         let mut rows = try_sql!(stmt.query([]));
 
         let mut clients: Vec<Client> = Vec::new();
@@ -214,7 +262,7 @@ impl Database for SqliteDb<'_> {
                 payments: payments.remove(&client_name).unwrap(),
                 name: client_name,
                 expire_time: datetime_from_str(&expire_date),
-                info: try_sql!(row.get(2))
+                info: try_sql!(row.get(2)),
             });
         }
 
@@ -222,46 +270,53 @@ impl Database for SqliteDb<'_> {
     }
 
     fn rename_client(&mut self, old_name: &str, new_name: &str) -> Result<(), String> {
-        let rows_affected = try_sql!(self.trans.execute("UPDATE clients SET name=? WHERE name=?", (new_name, old_name)));
+        let rows_affected = try_sql!(self.trans.execute(
+            "UPDATE clients SET name=? WHERE name=?",
+            (new_name, old_name)
+        ));
         if rows_affected == 0 {
-            return Err(format!("client with name '{}' doesn't exists!", old_name))
+            return Err(format!("client with name '{}' doesn't exists!", old_name));
         }
 
-        let rows_affected = try_sql!(
-            self.trans.execute(
-                "UPDATE payments SET client_name=? WHERE client_name=?",
-                (new_name, old_name)
-            )
-        );
+        let rows_affected = try_sql!(self.trans.execute(
+            "UPDATE payments SET client_name=? WHERE client_name=?",
+            (new_name, old_name)
+        ));
         assert!(rows_affected > 0);
         Ok(())
     }
 
     fn set_client_info(&mut self, target: Target, info: &str) -> Result<(), String> {
         let stmt = match target {
-            Target::All => self.trans.execute("UPDATE clients SET info=?", (info, )),
-            Target::MatchInfo(ref old_info) => self.trans.execute("UPDATE clients SET info=? WHERE info=?", (info, old_info)),
-            Target::OnePerson(ref name) => self.trans.execute("UPDATE clients SET info=? WHERE name=?", (info, name)),
+            Target::All => self.trans.execute("UPDATE clients SET info=?", (info,)),
+            Target::MatchInfo(ref old_info) => self
+                .trans
+                .execute("UPDATE clients SET info=? WHERE info=?", (info, old_info)),
+            Target::OnePerson(ref name) => self
+                .trans
+                .execute("UPDATE clients SET info=? WHERE name=?", (info, name)),
         };
 
         let rows_affected = try_sql!(stmt);
         if let Target::OnePerson(name) = target {
             if rows_affected == 0 {
                 return Err(format!("client with name '{}' doesn't exists!", name));
-            } 
+            }
         }
 
         Ok(())
     }
 
     fn get_client_info(&self, name: &str) -> Result<String, String> {
-        let mut stmt = try_sql!(self.trans.prepare("SELECT info FROM clients WHERE name=? LIMIT 1"));
+        let mut stmt = try_sql!(self
+            .trans
+            .prepare("SELECT info FROM clients WHERE name=? LIMIT 1"));
         let mut rows = try_sql!(stmt.query([name]));
-        
+
         let maybe_row = try_sql!(rows.next());
         match maybe_row {
             Some(row) => Ok(try_sql!(row.get(0))),
-            None => Err(format!("client with name '{}' doesn't exists!", name))
+            None => Err(format!("client with name '{}' doesn't exists!", name)),
         }
     }
 

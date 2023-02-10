@@ -1,6 +1,6 @@
+use crate::db::Payment;
 use chrono::{DateTime, Utc};
 use dialoguer::console::style;
-use crate::db::Payment;
 
 pub fn calculate_days_left(verbose: bool, expire_time: DateTime<Utc>) -> String {
     let now_date = Utc::now();
@@ -29,4 +29,3 @@ pub fn calculate_sellers(payments: &Vec<Payment>) -> String {
     let last_payment = payments.iter().rev().next().unwrap();
     format!("{}({})", last_payment.seller, last_payment.money)
 }
-

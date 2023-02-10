@@ -1,46 +1,46 @@
 use clap::{Args, Parser, Subcommand};
 
 #[derive(Parser)]
-#[command(about="this program will always remain manjaliof")]
+#[command(about = "this program will always remain manjaliof")]
 pub struct Cli {
-    #[command(subcommand)] 
+    #[command(subcommand)]
     pub command: Commands,
 
     #[arg(long, default_value_t = false)]
-    pub skip_post_script: bool
+    pub skip_post_script: bool,
 }
 
 #[derive(Subcommand, PartialEq)]
 pub enum Commands {
-    #[command(about="adds new client to db")]
+    #[command(about = "adds new client to db")]
     Add(AddArgs),
 
-    #[command(about="renew client")]
+    #[command(about = "renew client")]
     Renew(RenewArgs),
 
-    #[command(about="renew all clients that are not expired")]
+    #[command(about = "renew all clients that are not expired")]
     RenewAll(RenewAllArgs),
 
-    #[command(about="edit client datas")]
+    #[command(about = "edit client datas")]
     Edit(EditArgs),
 
-    #[command(about="remove client")]
+    #[command(about = "remove client")]
     Remove(RemoveArgs),
 
-    #[command(about="show all clients")]
+    #[command(about = "show all clients")]
     List(ListArgs),
 
-    #[command(about="rename client")]
+    #[command(about = "rename client")]
     Rename(RenameArgs),
 
-    #[command(about="set client info")]
+    #[command(about = "set client info")]
     SetInfo(SetInfoArgs),
 
-    #[command(about="remove expired clients that are expired long time ago")]
+    #[command(about = "remove expired clients that are expired long time ago")]
     Cleanup,
 
-    #[command(about="show message and sha256 of latest commit that is built from")]
-    Version
+    #[command(about = "show message and sha256 of latest commit that is built from")]
+    Version,
 }
 
 #[derive(Args, PartialEq)]
@@ -58,7 +58,7 @@ pub struct AddArgs {
     pub money: Option<u32>,
 
     #[arg(long)]
-    pub info: Option<String>
+    pub info: Option<String>,
 }
 
 pub type RenewArgs = AddArgs;
@@ -66,7 +66,7 @@ pub type RenewArgs = AddArgs;
 #[derive(Args, PartialEq)]
 pub struct RenewAllArgs {
     #[arg(long)]
-    pub days: Option<u32>
+    pub days: Option<u32>,
 }
 
 pub type EditArgs = AddArgs;
@@ -74,7 +74,7 @@ pub type EditArgs = AddArgs;
 #[derive(Args, PartialEq)]
 pub struct RemoveArgs {
     #[arg(long)]
-    pub name: Option<String>
+    pub name: Option<String>,
 }
 
 #[derive(Args, PartialEq)]
@@ -83,7 +83,7 @@ pub struct ListArgs {
     pub trim_whitespace: bool,
 
     #[arg(short, long, default_value_t = false)]
-    pub verbose: bool
+    pub verbose: bool,
 }
 
 #[derive(Args, PartialEq)]
@@ -92,7 +92,7 @@ pub struct RenameArgs {
     pub old_name: Option<String>,
 
     #[arg(long)]
-    pub new_name: Option<String>
+    pub new_name: Option<String>,
 }
 
 #[derive(Args, PartialEq)]
@@ -107,5 +107,5 @@ pub struct SetInfoArgs {
     pub name: Option<String>,
 
     #[arg(long)]
-    pub info: Option<String>
+    pub info: Option<String>,
 }

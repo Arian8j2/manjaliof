@@ -1,13 +1,17 @@
 pub struct Report {
     headers: Vec<&'static str>,
     headers_max_len: Vec<usize>,
-    items: Vec<Vec<String>>
+    items: Vec<Vec<String>>,
 }
 
 impl Report {
     pub fn new(headers: Vec<&'static str>) -> Report {
         let headers_len = headers.len();
-        Report { headers, headers_max_len: vec![0; headers_len], items: Vec::new() }
+        Report {
+            headers,
+            headers_max_len: vec![0; headers_len],
+            items: Vec::new(),
+        }
     }
 
     pub fn add_item(&mut self, item: Vec<String>) {
