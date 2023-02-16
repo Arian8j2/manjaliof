@@ -230,8 +230,8 @@ fn cleanup<T: Database>(db: &mut T) -> Result<PostScriptArgs, String> {
 
     let clients = db.list_clients()?;
     for client in clients {
-        let is_expired_ten_days_ago = (now_time - client.expire_time).num_days() >= 10;
-        if is_expired_ten_days_ago {
+        let is_expired_five_days_ago = (now_time - client.expire_time).num_days() >= 5;
+        if is_expired_five_days_ago {
             db.remove_client(&client.name)?;
             run_post_script("delete", vec![client.name.clone()])?;
             println!("{}", style(format!("deleted {}", client.name)).yellow());
