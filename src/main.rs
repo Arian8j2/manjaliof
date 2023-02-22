@@ -4,7 +4,7 @@ mod input;
 mod report;
 
 use chrono::Utc;
-use clap::Parser;
+use clap::{CommandFactory, Parser};
 use cli::{
     AddArgs, Cli, Commands, EditArgs, ListArgs, RemoveArgs, RenameArgs, RenewAllArgs, RenewArgs,
     SetInfoArgs,
@@ -12,7 +12,7 @@ use cli::{
 use db::{sqlitedb::SqliteDb, Database, Target};
 use dialoguer::console::style;
 use report::{client_report, Report};
-use std::{env, path::Path, process, process::ExitCode};
+use std::{env, io, path::Path, process, process::ExitCode};
 
 type PostScriptArgs = Option<Vec<String>>;
 
@@ -60,6 +60,7 @@ fn try_run_command<T: Database>(cli: &Cli, db: &mut T) -> Result<(), String> {
         Commands::SetInfo(args) => set_client_info(db, &args)?,
         Commands::Cleanup => cleanup(db)?,
         Commands::Version => version(),
+        Commands::GenerateBashCompletion => generate_bash_completion(),
     };
 
     if let (Some(name), Some(args)) = (post_script_name, post_script_arg) {
@@ -308,6 +309,18 @@ fn version() -> PostScriptArgs {
         "{}\n{}",
         style(env!("VERGEN_GIT_SHA")).green(),
         env!("VERGEN_GIT_COMMIT_MESSAGE")
+    );
+    None
+}
+
+fn generate_bash_completion() -> PostScriptArgs {
+    let mut cmd = Cli::command();
+    let name = cmd.get_name().to_string();
+    clap_complete::generate(
+        clap_complete::shells::Bash,
+        &mut cmd,
+        name,
+        &mut io::stdout(),
     );
     None
 }

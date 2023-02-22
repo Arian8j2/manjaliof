@@ -41,6 +41,9 @@ pub enum Commands {
 
     #[command(about = "show message and sha256 of latest commit that is built from")]
     Version,
+
+    #[command(about = "generate bash completion and print it out to stdout")]
+    GenerateBashCompletion,
 }
 
 #[derive(Args, PartialEq)]

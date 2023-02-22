@@ -7,6 +7,7 @@ build = "build.rs"
 [dependencies]
 chrono = "0.4.22"
 clap = { version = "4.0.15", features = ["derive", "color"] }
+clap_complete = "4.1.2"
 dialoguer = "0.10.2"
 serde = { version = "1.0.145", features = ["derive"] }
 serde_json = "1.0.86"
