@@ -38,7 +38,7 @@ fn try_main() -> Result<(), String> {
     let mut conn = SqliteDb::create_connection(db_path)?;
     let mut db = SqliteDb::new(&mut conn)?;
 
-    let command_result = try_run_command(&cli, &mut db);
+    let command_result = try_run_command(cli, &mut db);
     if !command_result.is_err() {
         db.commit()
             .map_err(|e| format!("CRITICAL ERROR: cannot commit changes: {e}"))?;
@@ -47,9 +47,9 @@ fn try_main() -> Result<(), String> {
     command_result
 }
 
-fn try_run_command<T: Database>(cli: &Cli, db: &mut T) -> Result<(), String> {
+fn try_run_command<T: Database>(cli: Cli, db: &mut T) -> Result<(), String> {
     let post_script_name = get_command_post_script(&cli.command, cli.skip_post_script);
-    let post_script_arg = match &cli.command {
+    let post_script_arg = match cli.command {
         Commands::Add(args) => add_client(db, args)?,
         Commands::Renew(args) => renew_client(db, args)?,
         Commands::RenewAll(args) => renew_all_clients(db, args)?,
@@ -57,7 +57,7 @@ fn try_run_command<T: Database>(cli: &Cli, db: &mut T) -> Result<(), String> {
         Commands::Remove(args) => remove_client(db, args)?,
         Commands::List(args) => list_clients(db, args)?,
         Commands::Rename(args) => rename_client(db, args)?,
-        Commands::SetInfo(args) => set_client_info(db, &args)?,
+        Commands::SetInfo(args) => set_client_info(db, args)?,
         Commands::Cleanup => cleanup(db)?,
         Commands::Version => version(),
         Commands::GenerateBashCompletion => generate_bash_completion(),
@@ -70,12 +70,12 @@ fn try_run_command<T: Database>(cli: &Cli, db: &mut T) -> Result<(), String> {
     Ok(())
 }
 
-fn add_client<T: Database>(db: &mut T, args: &AddArgs) -> Result<PostScriptArgs, String> {
-    let name = args.name.clone().unwrap_or_else(input::get_client_name);
+fn add_client<T: Database>(db: &mut T, args: AddArgs) -> Result<PostScriptArgs, String> {
+    let name = args.name.unwrap_or_else(input::get_client_name);
     let days = args.days.unwrap_or_else(input::get_days);
-    let seller = args.seller.clone().unwrap_or_else(input::get_seller);
+    let seller = args.seller.unwrap_or_else(input::get_seller);
     let money = args.money.unwrap_or_else(input::get_money_amount);
-    let info = args.info.clone().unwrap_or_else(|| input::get_info(None));
+    let info = args.info.unwrap_or_else(|| input::get_info(None));
 
     input::validators::validate_name(&name)?;
     input::validators::validate_seller(&seller)?;
@@ -85,12 +85,12 @@ fn add_client<T: Database>(db: &mut T, args: &AddArgs) -> Result<PostScriptArgs,
     Ok(Some(vec![name]))
 }
 
-fn renew_client<T: Database>(db: &mut T, args: &RenewArgs) -> Result<PostScriptArgs, String> {
-    let name = args.name.clone().unwrap_or_else(input::get_client_name);
+fn renew_client<T: Database>(db: &mut T, args: RenewArgs) -> Result<PostScriptArgs, String> {
+    let name = args.name.unwrap_or_else(input::get_client_name);
     let days = args.days.unwrap_or_else(input::get_days);
-    let seller = args.seller.clone().unwrap_or_else(input::get_seller);
+    let seller = args.seller.unwrap_or_else(input::get_seller);
     let money = args.money.unwrap_or_else(input::get_money_amount);
-    let mut info = args.info.clone().unwrap_or(String::new());
+    let mut info = args.info.unwrap_or(String::new());
 
     if info.is_empty() {
         let last_info = db.get_client_info(&name)?;
@@ -108,7 +108,7 @@ fn renew_client<T: Database>(db: &mut T, args: &RenewArgs) -> Result<PostScriptA
 
 fn renew_all_clients<T: Database>(
     db: &mut T,
-    args: &RenewAllArgs,
+    args: RenewAllArgs,
 ) -> Result<PostScriptArgs, String> {
     println!(
         "{}",
@@ -119,8 +119,8 @@ fn renew_all_clients<T: Database>(
     Ok(None)
 }
 
-fn edit_client<T: Database>(db: &mut T, args: &EditArgs) -> Result<PostScriptArgs, String> {
-    let name = args.name.clone().unwrap_or_else(input::get_client_name);
+fn edit_client<T: Database>(db: &mut T, args: EditArgs) -> Result<PostScriptArgs, String> {
+    let name = args.name.unwrap_or_else(input::get_client_name);
     let client = db
         .list_clients()?
         .into_iter()
@@ -139,32 +139,31 @@ fn edit_client<T: Database>(db: &mut T, args: &EditArgs) -> Result<PostScriptArg
     let last_payment = client.payments.last().unwrap();
     let seller = args
         .seller
-        .clone()
         .unwrap_or_else(|| input::get_new_seller(&last_payment.seller));
     let money = args
         .money
         .unwrap_or_else(|| input::get_new_money_amount(last_payment.money));
-    input::validators::validate_seller(&seller)?;
 
     let last_info = client.info.unwrap_or("".to_string());
     let info = args
         .info
-        .clone()
         .unwrap_or_else(|| input::get_info(Some(&last_info)));
+
+    input::validators::validate_seller(&seller)?;
     input::validators::validate_info(&info)?;
 
     db.edit_client(&name, days, &seller, money, &info)?;
     Ok(None)
 }
 
-fn remove_client<T: Database>(db: &mut T, args: &RemoveArgs) -> Result<PostScriptArgs, String> {
-    let name = args.name.clone().unwrap_or_else(input::get_client_name);
+fn remove_client<T: Database>(db: &mut T, args: RemoveArgs) -> Result<PostScriptArgs, String> {
+    let name = args.name.unwrap_or_else(input::get_client_name);
     input::validators::validate_name(&name)?;
     db.remove_client(&name)?;
     Ok(Some(vec![name]))
 }
 
-fn list_clients<T: Database>(db: &mut T, args: &ListArgs) -> Result<PostScriptArgs, String> {
+fn list_clients<T: Database>(db: &mut T, args: ListArgs) -> Result<PostScriptArgs, String> {
     let mut clients = db.list_clients()?;
     clients.sort_by_key(|client| client.expire_time);
     clients.reverse();
@@ -186,12 +185,9 @@ fn list_clients<T: Database>(db: &mut T, args: &ListArgs) -> Result<PostScriptAr
     Ok(None)
 }
 
-fn rename_client<T: Database>(db: &mut T, args: &RenameArgs) -> Result<PostScriptArgs, String> {
-    let old_name = args.old_name.clone().unwrap_or_else(input::get_client_name);
-    let new_name = args
-        .new_name
-        .clone()
-        .unwrap_or_else(input::get_client_new_name);
+fn rename_client<T: Database>(db: &mut T, args: RenameArgs) -> Result<PostScriptArgs, String> {
+    let old_name = args.old_name.unwrap_or_else(input::get_client_name);
+    let new_name = args.new_name.unwrap_or_else(input::get_client_new_name);
 
     input::validators::validate_name(&new_name)?;
 
@@ -199,7 +195,7 @@ fn rename_client<T: Database>(db: &mut T, args: &RenameArgs) -> Result<PostScrip
     Ok(Some(vec![old_name, new_name]))
 }
 
-fn set_client_info<T: Database>(db: &mut T, args: &SetInfoArgs) -> Result<PostScriptArgs, String> {
+fn set_client_info<T: Database>(db: &mut T, args: SetInfoArgs) -> Result<PostScriptArgs, String> {
     if (args.all as i32) + (args.match_info.is_some() as i32) + (args.name.is_some() as i32) > 1 {
         return Err("--match-info and --all and --name conflicts with each other".to_string());
     }
@@ -207,9 +203,9 @@ fn set_client_info<T: Database>(db: &mut T, args: &SetInfoArgs) -> Result<PostSc
     let target: Target = if args.all {
         Target::All
     } else if let Some(old_info) = &args.match_info {
-        Target::MatchInfo(old_info.clone())
+        Target::MatchInfo(old_info.to_string())
     } else {
-        Target::OnePerson(args.name.clone().unwrap_or_else(input::get_client_name))
+        Target::OnePerson(args.name.unwrap_or_else(input::get_client_name))
     };
 
     let last_info = match &target {
@@ -219,7 +215,6 @@ fn set_client_info<T: Database>(db: &mut T, args: &SetInfoArgs) -> Result<PostSc
     };
     let new_info = args
         .info
-        .clone()
         .unwrap_or_else(|| input::get_info(Some(&last_info)));
     db.set_client_info(target, &new_info)?;
 
